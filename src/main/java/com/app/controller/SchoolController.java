@@ -2,6 +2,8 @@ package com.app.controller;
 
 import java.util.ArrayList;
 
+import org.json.JSONObject;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -10,16 +12,16 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
 
 import com.app.model.Employee;
 import com.app.model.Employees;
 
 @Controller
-@RequestMapping("/employees")
-public class DemoController 
+public class SchoolController 
 {
-	@RequestMapping(method = RequestMethod.GET,  headers="Accept=application/xml")
-	public @ResponseBody Employees getEmployees() 
+	@RequestMapping(produces="application/json",value = "/employees", method = RequestMethod.GET)
+	public @ResponseBody String getEmployees() 
 	{
 		
 		String userRole = getUserRole();
@@ -63,7 +65,18 @@ public class DemoController
 		emps.getUsers().add(emp1);
 		emps.getUsers().add(emp2);
 		
-		return emps;
+		return new JSONObject().put("he", 1).toString();
+	}
+	
+	@RequestMapping(value = "/accessdenied", method = RequestMethod.GET)
+	public ModelAndView accessdenied() {
+
+		ModelAndView model = new ModelAndView();
+		model.addObject("title", "LeafSoft");
+		model.addObject("message", "This is welcome page!");
+		model.setViewName("access-denied");
+		return model;
+
 	}
 	
 	private String getUserRole(){

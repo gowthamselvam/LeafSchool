@@ -19,7 +19,7 @@ public class AuthenticationEntryPointDenied implements AuthenticationEntryPoint 
 		
 		// Redirecting service to access denied page for invalid users
 		RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
-		redirectStrategy.sendRedirect(request, response, "/accessdenied.do");
+		redirectStrategy.sendRedirect(request, response, "/accessdenied");
 		
 	}
 
