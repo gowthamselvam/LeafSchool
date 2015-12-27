@@ -87,7 +87,7 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 	public OrgUser loadUserByUsername(String userName) {
 		OrgUser user = null;
 		try {
-		String sql = "SELECT * FROM LeafUsers WHERE username = ?";
+		String sql = "SELECT * FROM OrgUsers WHERE username = ?";
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		user = jdbcTemplate.queryForObject(sql,new Object[]{userName},  new BeanPropertyRowMapper<OrgUser>(OrgUser.class));
 		}catch(Exception e) {

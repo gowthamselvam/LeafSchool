@@ -21,7 +21,7 @@ public class UrlParametersAuthenticationFilter  extends AbstractPreAuthenticated
 	@Override
 	protected Object getPreAuthenticatedPrincipal(HttpServletRequest request) {
 		// Check for cookies
-		return OrgUtil.setCurrentUser(request);
+		return OrgUtil.setCurrentUser(request,null);
 	}
 
 	@Override

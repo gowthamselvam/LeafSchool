@@ -43,7 +43,7 @@ public class UserDetailsServiceImpl implements AuthenticationUserDetailsService 
 	    	}
 	    	
 	    	if(orguser != null) {
-				if ("admin".equalsIgnoreCase(name)) {
+				if ("ramesh".equalsIgnoreCase(name)) {
 					userDetails = getAdminUser(name);
 				} else if ("dba".equalsIgnoreCase(name)) {
 					userDetails = getDBAUser(name);

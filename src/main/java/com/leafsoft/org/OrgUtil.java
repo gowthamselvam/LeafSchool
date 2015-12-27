@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.json.JSONArray;
@@ -18,12 +19,15 @@ import org.springframework.security.core.authority.GrantedAuthorityImpl;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 
+import com.leafsoft.http.HttpUtil;
 import com.leafsoft.school.dao.OrgUsersDao;
 import com.leafsoft.school.dao.impl.OrgUsersDaoImpl;
 import com.leafsoft.school.model.OrgDetail;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.util.CommonUtil;
 import com.leafsoft.user.LeafUser;
+import com.leafsoft.util.AppResources;
+import com.leafsoft.util.JSONUtil;
 import com.leafsoft.util.JdbcUtil;
 
 
@@ -212,14 +216,14 @@ public class OrgUtil {
 		ORGDETAILS.set(oRGDETAILS);
 	}
 	
-	public static boolean setCurrentUser(HttpServletRequest request) {
+	public static boolean setCurrentUser(HttpServletRequest request,HttpServletResponse response) {
 		try {
+			HttpSession session = request.getSession();
 			OrgUser orgUser = getCurrentUser();
 			if(orgUser == null) {
 				Cookie[] cookie_jar = request.getCookies();
-				System.out.print("sessionid"+request.getUserPrincipal());
-				HttpSession session = request.getSession();
-				System.out.print("sessionid"+session.getId());
+				System.out.print("sessionidprincipal"+request.getUserPrincipal());
+				System.out.print("sessionidname"+session.getAttribute("user"));
 			// Check to see if any cookies exists
 				if (cookie_jar != null)
 				{
@@ -230,14 +234,35 @@ public class OrgUtil {
 						System.out.println ("Value: " + aCookie.getValue());
 						if(!aCookie.getValue().equals(request.getRequestedSessionId()))
 							try {
-								//String response = HttpUtil.sendGet("http://http://localhost:6060/loginUsers", aCookie.getValue());
-								String response = "{\"enabled\":1,\"lid\":1000005,\"username\":\"admin\",\"email\":\"ramesh@gmail.com\",\"dob\":\"1111-11-11 00:00:00.0\"}";
-								JSONObject sessionUser = new JSONObject(response);
-								LeafUser leafuser = CommonUtil.getLeafUserFromSessionJson(sessionUser);
-								OrgUtil.init(leafuser, request.getParameter("orgid"), request.getRemoteAddr());
-		//						SecurityContext securityContext = SecurityContextHolder.getContext();
-		//						session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
-								return true;
+								JSONObject sessionUser = null;
+								if(Boolean.valueOf(AppResources.getInstance().isDevelopmentMode())) {
+									sessionUser = JSONUtil.getInstance().getDebugJson().getJSONObject("1").getJSONObject("userInfo");
+								} else {
+									String httpResponse = HttpUtil.sendGet(AppResources.getInstance().getAccountsUrl()+"/loginUsers", aCookie.getValue());
+									System.out.print("response:::::::::"+httpResponse);
+									sessionUser = new JSONObject(httpResponse);
+									if(sessionUser.length() <=0 && response!=null) {
+										response.sendRedirect(AppResources.getInstance().getAccountsUrl());
+									} else if(sessionUser.length() <=0) {
+										return false;
+									} else {
+										LeafUser leafuser = CommonUtil.getLeafUserFromSessionJson(sessionUser);
+										OrgUtil.init(leafuser, request.getParameter("orgid"), request.getRemoteAddr());
+				//						SecurityContext securityContext = SecurityContextHolder.getContext();
+				//						session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
+										OrgUtil.setUser(leafuser);
+										OrgUtil.setUserlid(leafuser.getLid());
+										DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
+								        // Inject the datasource into the dao
+								    	OrgUsersDao userDAO = new OrgUsersDaoImpl();
+								    	userDAO.setDataSource(datasource);
+								    	orgUser = userDAO.loadOrgUserByLid(leafuser.getLid());
+								    	OrgUtil.setOwner(orgUser);
+								    	OrgUtil.setOwnerid(orgUser.getLuid());
+								    	session.setAttribute("user", orgUser.getUsername());
+										return true;
+									}
+								}
 							} catch (Exception e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -246,6 +271,10 @@ public class OrgUtil {
 					}
 				}
 			} else {
+				System.out.print("orgusername::::"+orgUser.getUsername());
+				if(session!=null) {
+					//session.setAttribute("user", orgUser.getUsername());
+				}
 				OrgUtil.setOwner(orgUser);
 				OrgUtil.setOwnerid(orgUser.getLuid());
 				OrgUtil.setUserlid(orgUser.getLid());
@@ -265,6 +294,7 @@ public class OrgUtil {
 		try{
 			if(a.getPrincipal() != null) {
 				user = (User) a.getPrincipal();
+				System.out.print("user::::"+user);
 			} else {
 				return null;
 			}
@@ -276,7 +306,7 @@ public class OrgUtil {
 			OrgUsersDao userDAO = new OrgUsersDaoImpl();
 			userDAO.setDataSource(datasource);
 			orguser = userDAO.loadUserByUsername(user.getUsername());
-			
+			System.out.print("username::::"+user.getUsername());
 		}
 		return orguser;
 	}

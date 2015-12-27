@@ -50,6 +50,9 @@ public class AppResources {
 	public String getSmtpUser() {
 		return APP_PROPERTIES.getProperty("mail.smtp.user");
 	}
+	public String getServer() {
+		return APP_PROPERTIES.getProperty("leafsoft.server");
+	}
 	public String getSmtpPassword() {
 		String password = "";
 		try {
@@ -61,5 +64,11 @@ public class AppResources {
 	}
 	public String getLeafSoftUrl() {
 		return APP_PROPERTIES.getProperty("leafsoft.url").trim();
+	}
+	public String isDevelopmentMode() {
+		return APP_PROPERTIES.getProperty("development.mode").trim();
+	}
+	public String getAccountsUrl() {
+		return APP_PROPERTIES.getProperty("accounts.url").trim();
 	}
 }

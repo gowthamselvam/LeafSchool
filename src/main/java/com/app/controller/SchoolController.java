@@ -31,7 +31,7 @@ public class SchoolController
 		Employee emp1 = new Employee();
 		Employee emp2 = new Employee();
 		
-		if(userRole.equals("admin")){
+		if(userRole.equals("ramesh")){
 		
 			emp1.setFirstName("Bala");
 			emp1.setLastName("Raj");

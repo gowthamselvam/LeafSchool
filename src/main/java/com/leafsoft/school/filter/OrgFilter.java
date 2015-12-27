@@ -11,6 +11,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -30,9 +31,10 @@ public class OrgFilter implements Filter {
 			throws IOException, ServletException {
 		try {
 			HttpServletRequest request = (HttpServletRequest) req;
+			HttpServletResponse response = (HttpServletResponse) res;
 			String path = request.getRequestURI();
 			//String serviceName = path.substring(path.lastIndexOf("/")+1, path.indexOf("."));
-				boolean success = OrgUtil.setCurrentUser(request);
+				boolean success = OrgUtil.setCurrentUser(request,response);
 				LOGGER.log(Level.INFO,"user Authenitcation status:::::"+success);
 			LOGGER.log(Level.INFO,"Filter:::::ip:"+request.getRemoteAddr());
 			fc.doFilter(req, res);
