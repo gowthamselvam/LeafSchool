@@ -21,6 +21,8 @@ public class OrgUser implements Serializable {
 
 	private BigInteger createtime;
 
+	private int defaultorgid;
+
 	private String email;
 
 	private int lid;
@@ -48,6 +50,14 @@ public class OrgUser implements Serializable {
 
 	public void setCreatetime(BigInteger createtime) {
 		this.createtime = createtime;
+	}
+
+	public int getDefaultorgid() {
+		return this.defaultorgid;
+	}
+
+	public void setDefaultorgid(int defaultorgid) {
+		this.defaultorgid = defaultorgid;
 	}
 
 	public String getEmail() {

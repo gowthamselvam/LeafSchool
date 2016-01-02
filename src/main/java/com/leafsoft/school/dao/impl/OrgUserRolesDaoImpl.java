@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -54,7 +56,56 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 				    keyHolder);
 			LOGGER.log(Level.INFO, "OrgUserRoles:Id::" + keyHolder.getKey().intValue());
 		    return  keyHolder.getKey().intValue();
-			
+	}
+	
+	public OrgUserRole loadOrgUserByLuid(int luid,int orgId) {
+		OrgUserRole orgUserrole = null;
+		try {
+		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ? and orgid = ?";
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		orgUserrole = jdbcTemplate.queryForObject(sql,new Object[]{luid,orgId},  new BeanPropertyRowMapper<OrgUserRole>(OrgUserRole.class));
+		}catch(Exception e) {
+			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
+		}
+		return orgUserrole;
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public List<OrgUserRole> findAllOrg(int luid) {
+		List<OrgUserRole> orgUserrole = null;
+		try {
+		//String sql = "SELECT our.orgid,our.orgname,od.rolename FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid WHERE our.luid = ? and our.orgid = ?";
+		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ?";
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		orgUserrole = jdbcTemplate.query(sql,new Object[]{luid},  new BeanPropertyRowMapper(OrgUserRole.class));
+		}catch(Exception e) {
+			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
+		}
+		return orgUserrole;
+	}
+	
+	public OrgUserRole getSingleOrg(int luid) {
+		OrgUserRole orgUserrole = null;
+		try {
+		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ? limit 1";
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		orgUserrole = jdbcTemplate.queryForObject(sql,new Object[]{luid},  new BeanPropertyRowMapper<OrgUserRole>(OrgUserRole.class));
+		}catch(Exception e) {
+			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
+		}
+		return orgUserrole;
+	}
+	
+	public int getTotalNumberOfOrgForUser(int luid) {
+		int count = 0;
+		try {
+			String sql = "SELECT count(*) FROM OrgUserRoles WHERE luid = ?";
+			JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+			count = jdbcTemplate.queryForObject(sql, new Object[]{luid},Integer.class);
+		}catch(Exception e) {
+			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
+		}
+		return count;
 	}
 	
 }

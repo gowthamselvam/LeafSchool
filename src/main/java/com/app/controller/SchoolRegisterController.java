@@ -46,6 +46,7 @@ public class SchoolRegisterController {
     	 OrgUser orguser = null;
          OrgUsersDao orgUserDao = new OrgUsersDaoImpl();
          orgUserDao.setDataSource(datasource);
+         LOGGER.log(Level.INFO,"userLid::::"+OrgUtil.getUserlid());
     	if(!orgUserDao.hasUser(OrgUtil.getUserlid())) {
     		orguser = new OrgUser();
         	orguser.setEmail(OrgUtil.getUser().getEmail());

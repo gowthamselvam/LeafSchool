@@ -14,9 +14,9 @@
 	<http pattern="/accessdenied" security="none"/>
 	<http create-session="never"
 		auto-config="false" entry-point-ref="preAuthenticatedProcessingFilterEntryPoint">
-		<intercept-url pattern="/**" access="ROLE_USER"/>
-		<intercept-url pattern="/register" access="IS_AUTHENTICATED_FULLY"/>
-		<intercept-url pattern="/schoolRegister" access="IS_AUTHENTICATED_FULLY"/>
+		<intercept-url pattern="/**" access="ROLE_COMMONUSER"/>
+		<intercept-url pattern="/register" access="ROLE_COMMONUSER"/>
+		<intercept-url pattern="/schoolRegister" access="ROLE_COMMONUSER"/>
 		<custom-filter position="PRE_AUTH_FILTER"
 			ref="preAuthFilter" />
 		<session-management

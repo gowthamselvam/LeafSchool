@@ -2,10 +2,12 @@ package com.app.filter;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.codehaus.jackson.map.util.JSONPObject;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
@@ -17,11 +19,11 @@ import com.leafsoft.school.util.CommonUtil;
 import com.leafsoft.user.LeafUser;
 
 public class UrlParametersAuthenticationFilter  extends AbstractPreAuthenticatedProcessingFilter {
-
+	
 	@Override
 	protected Object getPreAuthenticatedPrincipal(HttpServletRequest request) {
 		// Check for cookies
-		return OrgUtil.setCurrentUser(request,null);
+		return OrgUtil.setCurrentUser(request);
 	}
 
 	@Override

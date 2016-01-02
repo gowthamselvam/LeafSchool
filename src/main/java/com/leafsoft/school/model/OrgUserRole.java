@@ -18,9 +18,12 @@ public class OrgUserRole implements Serializable {
 	@Column(name="user_role_id")
 	private int userRoleId;
 
-	private int orgid;
-
 	private String rolename;
+
+	//bi-directional many-to-one association to OrgDetail
+	@ManyToOne
+	@JoinColumn(name="orgid")
+	private OrgDetail orgDetail;
 
 	//bi-directional many-to-one association to OrgUser
 	@ManyToOne
@@ -38,20 +41,20 @@ public class OrgUserRole implements Serializable {
 		this.userRoleId = userRoleId;
 	}
 
-	public int getOrgid() {
-		return this.orgid;
-	}
-
-	public void setOrgid(int orgid) {
-		this.orgid = orgid;
-	}
-
 	public String getRolename() {
 		return this.rolename;
 	}
 
 	public void setRolename(String rolename) {
 		this.rolename = rolename;
+	}
+
+	public OrgDetail getOrgDetail() {
+		return this.orgDetail;
+	}
+
+	public void setOrgDetail(OrgDetail orgDetail) {
+		this.orgDetail = orgDetail;
 	}
 
 	public OrgUser getOrgUser() {

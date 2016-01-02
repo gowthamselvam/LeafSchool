@@ -44,4 +44,8 @@ public class CommonUtil {
 	        }
 	        GrantedAuthority authorities = (GrantedAuthority)listOfAuthorities;
 	    }
+	  
+	  public static String getOrgDb(int orgid) {
+		  return "db"+orgid;
+	  }
 }

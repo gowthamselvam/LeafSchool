@@ -2,6 +2,8 @@ package com.app.controller;
 
 import java.util.ArrayList;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.json.JSONObject;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -16,10 +18,26 @@ import org.springframework.web.servlet.ModelAndView;
 
 import com.app.model.Employee;
 import com.app.model.Employees;
+import com.leafsoft.org.OrgUtil;
 
 @Controller
 public class SchoolController 
 {
+	@RequestMapping(value = {"/", "/welcome"})
+	public ModelAndView welcome(HttpServletRequest request) {
+
+		ModelAndView model = new ModelAndView();
+		model.addObject("title", "LeafSoft");
+		model.addObject("message", "This is welcome page!");
+		if(OrgUtil.getOwner() == null) {
+			OrgUtil.setCurrentUser(request);
+		}
+		model.addObject("user",OrgUtil.getOwner());
+		model.addObject("org",OrgUtil.getOrgDetails());
+		model.setViewName("helloWorld");
+		return model;
+
+	}
 	@RequestMapping(produces="application/json",value = "/employees", method = RequestMethod.GET)
 	public @ResponseBody String getEmployees() 
 	{
@@ -31,7 +49,7 @@ public class SchoolController
 		Employee emp1 = new Employee();
 		Employee emp2 = new Employee();
 		
-		if(userRole.equals("ramesh")){
+		if(userRole.equals("admin")){
 		
 			emp1.setFirstName("Bala");
 			emp1.setLastName("Raj");

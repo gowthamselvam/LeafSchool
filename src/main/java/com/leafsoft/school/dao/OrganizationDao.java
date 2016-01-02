@@ -10,7 +10,7 @@ public interface OrganizationDao {
 	
 	public int insert(OrgDetail org);
 	
-	public OrgDetail loadOrgDetailByLid(long orgId);
+	public OrgDetail loadOrgDetailByOrgId(long orgId);
 	
 	public boolean hasOrg(String orgName);
 	
