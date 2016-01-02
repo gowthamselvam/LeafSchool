@@ -67,7 +67,15 @@
 	</filter-mapping>
 	<filter-mapping>
 		<filter-name>DoesNotFilter</filter-name>
+		<url-pattern>/accessdenied</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>DoesNotFilter</filter-name>
 		<url-pattern>/register</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>DoesNotFilter</filter-name>
+		<url-pattern>/invaliduser</url-pattern>
 	</filter-mapping>
 	<filter-mapping>
 		<filter-name>DoesNotFilter</filter-name>

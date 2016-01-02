@@ -10,6 +10,7 @@
 	<http pattern="/css/**" security="none"/>
 	<http pattern="/js/**" security="none"/>
 	<http pattern="/favicon.ico" security="none"/>
+	<http pattern="/invaliduser" security="none"/>
 	
 	<http pattern="/accessdenied" security="none"/>
 	<http create-session="never"
@@ -19,8 +20,10 @@
 		<intercept-url pattern="/schoolRegister" access="ROLE_COMMONUSER"/>
 		<custom-filter position="PRE_AUTH_FILTER"
 			ref="preAuthFilter" />
-		<session-management
-			session-fixation-protection="none" />
+		<!-- <session-management
+			session-fixation-protection="none" /> -->
+		<session-management session-fixation-protection="newSession" />
+    	<logout logout-success-url="/logout" delete-cookies="JSESSIONID" />
 	</http>
 
 	<beans:bean id="preAuthFilter" class="com.app.filter.UrlParametersAuthenticationFilter">

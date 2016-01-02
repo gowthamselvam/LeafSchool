@@ -42,7 +42,7 @@
                 </tr>
                 <tr>
                     <td>Address:</td>
-                    <td><form:input id='address' path="address" class ='ta10'/></td>
+                    <td><form:textarea id='address' path="address" class ='ta10'/></td>
                 </tr>
                 <tr>
                     <td>Country:</td>

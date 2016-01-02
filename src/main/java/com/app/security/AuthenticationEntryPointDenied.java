@@ -11,6 +11,9 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 
+import com.leafsoft.org.OrgUtil;
+import com.leafsoft.util.AppResources;
+
 public class AuthenticationEntryPointDenied implements AuthenticationEntryPoint {
 
 	public void commence(HttpServletRequest request,
@@ -19,7 +22,11 @@ public class AuthenticationEntryPointDenied implements AuthenticationEntryPoint 
 		
 		// Redirecting service to access denied page for invalid users
 		RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
-		redirectStrategy.sendRedirect(request, response, "/accessdenied");
+		if(OrgUtil.getOwner() == null) {
+			redirectStrategy.sendRedirect(request, response, AppResources.getInstance().getAccountsUrl());
+		} else {
+			redirectStrategy.sendRedirect(request, response, "/accessdenied");
+		}
 		
 	}
 

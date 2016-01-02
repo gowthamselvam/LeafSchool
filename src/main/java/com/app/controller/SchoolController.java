@@ -19,6 +19,7 @@ import org.springframework.web.servlet.ModelAndView;
 import com.app.model.Employee;
 import com.app.model.Employees;
 import com.leafsoft.org.OrgUtil;
+import com.leafsoft.util.AppResources;
 
 @Controller
 public class SchoolController 
@@ -38,6 +39,19 @@ public class SchoolController
 		return model;
 
 	}
+	
+	@RequestMapping(value = {"/invaliduser"})
+	public ModelAndView invalidUser() {
+		ModelAndView model = new ModelAndView();
+		model.addObject("title", "SchoolManagement");
+		model.addObject("message", "Ooops!!!, It's seems that you did't made login on leafsoft, Please login/signup on the below link and then access school application! Thank you");
+		model.addObject("leafsofturl",AppResources.getInstance().getAccountsUrl());
+		model.setViewName("invaliduser");
+		return model;
+	}
+	
+	
+	
 	@RequestMapping(produces="application/json",value = "/employees", method = RequestMethod.GET)
 	public @ResponseBody String getEmployees() 
 	{
@@ -115,6 +129,10 @@ public class SchoolController
             }
             if ("ROLE_USER".equals(auth.getAuthority())){
                 userRole = "user";
+                break;
+            }
+            if ("ROLE_COMMONUSER".equals(auth.getAuthority())){
+                userRole = "commonuser";
                 break;
             }
         }
