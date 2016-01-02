@@ -1,4 +1,6 @@
- CREATE TABLE `OrgDetails` (
+CREATE DATABASE IF NOT EXISTS Organizations; 
+ 
+CREATE TABLE `OrgDetails` (
   `orgid` int(11) NOT NULL AUTO_INCREMENT,
   `orgname` varchar(100) NOT NULL,
   `address` varchar(255) DEFAULT NULL,
@@ -20,8 +22,10 @@ CREATE TABLE `OrgUsers` (
   `username` varchar(100) NOT NULL,
   `email` varchar(50) DEFAULT NULL,
   `createtime` bigint(20) NOT NULL,
-  PRIMARY KEY (`luid`)
-) ENGINE=InnoDB AUTO_INCREMENT=1000000 DEFAULT CHARSET=latin1;
+  `defaultorgid` int(11) DEFAULT '-1',
+  PRIMARY KEY (`luid`),
+  KEY `defaultorgid` (`defaultorgid`)
+) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=latin1;
 
 CREATE TABLE `OrgUserRoles` (
   `user_role_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -31,5 +35,7 @@ CREATE TABLE `OrgUserRoles` (
   PRIMARY KEY (`user_role_id`),
   UNIQUE KEY `uni_userid_role` (`rolename`,`luid`,`orgid`),
   KEY `fk_luid_idx` (`luid`),
-  CONSTRAINT `fk_luid` FOREIGN KEY (`luid`) REFERENCES `OrgUsers` (`luid`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1;
+  KEY `orgid` (`orgid`),
+  CONSTRAINT `fk_luid` FOREIGN KEY (`luid`) REFERENCES `OrgUsers` (`luid`),
+  CONSTRAINT `orguserroles_ibfk_1` FOREIGN KEY (`orgid`) REFERENCES `OrgDetails` (`orgid`)
+) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=latin1;
