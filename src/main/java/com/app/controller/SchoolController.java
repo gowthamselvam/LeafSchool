@@ -35,7 +35,7 @@ public class SchoolController
 		}
 		model.addObject("user",OrgUtil.getOwner());
 		model.addObject("org",OrgUtil.getOrgDetails());
-		model.setViewName("helloWorld");
+		model.setViewName("home");
 		return model;
 
 	}
