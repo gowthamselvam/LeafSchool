@@ -195,17 +195,6 @@ public class OrgUtil {
 		}
 	}
 	
-	public static void cleanup() {
-		OrgUtil.setOwner(null);
-		OrgUtil.setUser(null);
-		OrgUtil.setUserRole(null);
-		OrgUtil.setOrgdb(null);
-		OrgUtil.setRemoteuseripaddress(null);
-		OrgUtil.setUserlid(null);
-		OrgUtil.setOrgadmins(null);
-		OrgUtil.setOwnerid(null);
-		OrgUtil.setOrgUser(null);
-	}
 	/**
 	 * @return the oRG_USER
 	 */
@@ -269,7 +258,7 @@ public class OrgUtil {
 								if(Boolean.valueOf(AppResources.getInstance().isDevelopmentMode())) {
 									sessionUser = JSONUtil.getInstance().getDebugJson().getJSONObject("1").getJSONObject("userInfo");
 								} else {
-									String httpResponse = HttpUtil.sendGet(AppResources.getInstance().getAccountsUrl()+"/loginUsers", aCookie.getValue());
+									String httpResponse = HttpUtil.makeApiCall(AppResources.getInstance().getAccountsUrl()+"/loginUsers", aCookie.getValue(),"GET");
 									System.out.print("response:::::::::"+httpResponse);
 									sessionUser = new JSONObject(httpResponse);
 								} 
@@ -389,4 +378,18 @@ public class OrgUtil {
     	OrgUtil.setRemoteuseripaddress(request.getRemoteAddr());
 	}
 	
+	public static void cleanup() {
+		OrgUtil.setOwner(null);
+		OrgUtil.setUser(null);
+		OrgUtil.setUserRole(null);
+		OrgUtil.setOrgdb(null);
+		OrgUtil.setRemoteuseripaddress(null);
+		OrgUtil.setUserlid(null);
+		OrgUtil.setOrgadmins(null);
+		OrgUtil.setOwnerid(null);
+		OrgUtil.setOrgUser(null);
+		OrgUtil.setOrgId(null);
+		OrgUtil.setOrgDetails(null);
+		OrgUtil.setValidOrg(false);
+	}
 }

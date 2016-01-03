@@ -11,6 +11,7 @@
 	<http pattern="/js/**" security="none"/>
 	<http pattern="/favicon.ico" security="none"/>
 	<http pattern="/invaliduser" security="none"/>
+	<http pattern="/logoutsession" security="none"/>
 	
 	<http pattern="/accessdenied" security="none"/>
 	<http create-session="never"
@@ -23,7 +24,7 @@
 		<!-- <session-management
 			session-fixation-protection="none" /> -->
 		<session-management session-fixation-protection="newSession" />
-    	<logout logout-success-url="/logout" delete-cookies="JSESSIONID" />
+    	<logout logout-url="/logout" logout-success-url="/logoutsession" delete-cookies="JSESSIONID" />
 	</http>
 
 	<beans:bean id="preAuthFilter" class="com.app.filter.UrlParametersAuthenticationFilter">

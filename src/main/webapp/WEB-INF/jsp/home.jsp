@@ -22,6 +22,10 @@
 		<h3>School Name: <c:out value="${org.orgname}"/></h3>
 		<h3>Address : <c:out value="${org.address}"/></h3>
 		<h3>State : <c:out value="${org.state}"/></h3>
-		<h3>City : <c:out value="${org.city}"/></h3>	
+		<h3>City : <c:out value="${org.city}"/></h3>
+		<form class="form-inline" action="logout" method="post">
+      <p><input type="submit" value="Log out" class='fb9'/>
+      <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+      </p></form>	
 	</body>
 </html>

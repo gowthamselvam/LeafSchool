@@ -75,6 +75,10 @@
 	</filter-mapping>
 	<filter-mapping>
 		<filter-name>DoesNotFilter</filter-name>
+		<url-pattern>/logoutsession</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>DoesNotFilter</filter-name>
 		<url-pattern>/invaliduser</url-pattern>
 	</filter-mapping>
 	<filter-mapping>

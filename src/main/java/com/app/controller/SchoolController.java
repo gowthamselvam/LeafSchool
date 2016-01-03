@@ -2,7 +2,10 @@ package com.app.controller;
 
 import java.util.ArrayList;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.json.JSONObject;
 import org.springframework.http.MediaType;
@@ -18,8 +21,10 @@ import org.springframework.web.servlet.ModelAndView;
 
 import com.app.model.Employee;
 import com.app.model.Employees;
+import com.leafsoft.http.HttpUtil;
 import com.leafsoft.org.OrgUtil;
 import com.leafsoft.util.AppResources;
+import com.leafsoft.util.JSONUtil;
 
 @Controller
 public class SchoolController 
@@ -42,6 +47,43 @@ public class SchoolController
 	
 	@RequestMapping(value = {"/invaliduser"})
 	public ModelAndView invalidUser() {
+		ModelAndView model = new ModelAndView();
+		model.addObject("title", "SchoolManagement");
+		model.addObject("message", "Ooops!!!, It's seems that you did't made login on leafsoft, Please login/signup on the below link and then access school application! Thank you");
+		model.addObject("leafsofturl",AppResources.getInstance().getAccountsUrl());
+		model.setViewName("invaliduser");
+		return model;
+	}
+	
+	@RequestMapping(value = {"/logoutsession"})
+	public ModelAndView logout(HttpServletRequest request, HttpServletResponse response) {
+		OrgUtil.cleanup();
+		HttpSession session = request.getSession();
+		Cookie[] cookie_jar = request.getCookies();
+		System.out.print("sessionidprincipal"+request.getUserPrincipal());
+		System.out.print("sessionidname"+session.getAttribute("user"));
+	// Check to see if any cookies exists
+		JSONObject sessionUser = null;
+		if (cookie_jar != null)
+		{
+			for (int i =0; i< cookie_jar.length; i++)
+			{
+				Cookie aCookie = cookie_jar[i];
+				System.out.println ("Name : " + aCookie.getName());
+				System.out.println ("Value: " + aCookie.getValue());
+				if(!aCookie.getValue().equals(request.getRequestedSessionId()) || Boolean.valueOf(AppResources.getInstance().isDevelopmentMode()))
+					try {
+						System.out.print("Boolean.valueOf(AppResources.getInstance().isDevelopmentMode())"+Boolean.valueOf(AppResources.getInstance().isDevelopmentMode()));
+						if(!Boolean.valueOf(AppResources.getInstance().isDevelopmentMode())) {
+							String httpResponse = HttpUtil.makeApiCall(AppResources.getInstance().getAccountsUrl()+"/logoutUsers", aCookie.getValue(),"GET");
+							System.out.print("response:::::::::"+httpResponse);
+						} 
+						} catch(Exception e) {
+							e.printStackTrace();
+						}
+					}
+		}
+		SecurityContextHolder.clearContext();
 		ModelAndView model = new ModelAndView();
 		model.addObject("title", "SchoolManagement");
 		model.addObject("message", "Ooops!!!, It's seems that you did't made login on leafsoft, Please login/signup on the below link and then access school application! Thank you");
