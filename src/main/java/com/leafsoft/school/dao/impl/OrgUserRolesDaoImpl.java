@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -11,6 +12,7 @@ import java.util.logging.Logger;
 
 import javax.sql.DataSource;
 
+import org.json.JSONArray;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
@@ -23,6 +25,7 @@ import com.leafsoft.school.dao.OrganizationDao;
 import com.leafsoft.school.model.OrgDetail;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.model.OrgUserRole;
+import com.leafsoft.school.rowmapper.RowMapper;
 
 public class OrgUserRolesDaoImpl implements OrgUserRolesDao {
 private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getName());
@@ -70,19 +73,43 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		return orgUserrole;
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public List<OrgUserRole> findAllOrg(int luid) {
-		List<OrgUserRole> orgUserrole = null;
-		try {
-		//String sql = "SELECT our.orgid,our.orgname,od.rolename FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid WHERE our.luid = ? and our.orgid = ?";
-		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ?";
+	public JSONArray findAllUserOrg(int luid) {
+		String sql = "SELECT * FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid inner join OrgUsers ou on ou.luid=our.luid where our.luid = ?";
+		 
+		JSONArray OrgUserRolesArray = new JSONArray();
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-		orgUserrole = jdbcTemplate.query(sql,new Object[]{luid},  new BeanPropertyRowMapper(OrgUserRole.class));
-		}catch(Exception e) {
-			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, new Object[]{luid});
+		for (Map<String, Object> row : rows) {
+			OrgUserRole orgUserRole = new OrgUserRole();
+			orgUserRole.setUserRoleId((Integer)(row.get("user_role_id")));
+			orgUserRole.setRolename((String)row.get("rolename"));
+			orgUserRole.setOrgUser(RowMapper.setOrgUserRow(row));
+			orgUserRole.setOrgDetail(RowMapper.setOrgDetailRow(row));
+			OrgUserRolesArray.put(orgUserRole);
 		}
-		return orgUserrole;
+			
+		return OrgUserRolesArray;
 	}
+	
+	public JSONArray findAll(){
+		
+		String sql = "SELECT * FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid inner join OrgUsers ou on ou.luid=our.luid";
+			 
+		JSONArray OrgUserRolesArray = new JSONArray();
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
+		for (Map<String, Object> row : rows) {
+			OrgUserRole orgUserRole = new OrgUserRole();
+			orgUserRole.setUserRoleId((Integer)(row.get("user_role_id")));
+			orgUserRole.setRolename((String)row.get("rolename"));
+			orgUserRole.setOrgUser(RowMapper.setOrgUserRow(row));
+			orgUserRole.setOrgDetail(RowMapper.setOrgDetailRow(row));
+			OrgUserRolesArray.put(orgUserRole);
+		}
+			
+		return OrgUserRolesArray;
+	}
+
 	
 	public OrgUserRole getSingleOrg(int luid) {
 		OrgUserRole orgUserrole = null;

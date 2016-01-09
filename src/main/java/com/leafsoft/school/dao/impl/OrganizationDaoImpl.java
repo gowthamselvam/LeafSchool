@@ -69,7 +69,14 @@ public class OrganizationDaoImpl implements OrganizationDao{
 			        new Object[] { keyHolder.getKey(), OrgUtil.getOwnerid(), "ROLE_ADMIN"});
 		    insert.update(sql2,new Object[] { keyHolder.getKey(),OrgUtil.getOwnerid() });
 		    
+		    //Create User Database
 		    JdbcUtil.createDatabase(CommonUtil.getOrgDb(keyHolder.getKey().intValue()));
+		    
+		    //Set Userdb
+		    OrgUtil.setOrgdb(CommonUtil.getOrgDb(keyHolder.getKey().intValue()));
+		    
+		    //populate user tables
+		    JdbcUtil.executeQueryFromFile(JdbcUtil.getUserDataSource());
 		    
 		    return  keyHolder.getKey().intValue();
 			

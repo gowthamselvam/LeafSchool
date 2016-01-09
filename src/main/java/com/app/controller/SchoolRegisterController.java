@@ -41,7 +41,7 @@ public class SchoolRegisterController {
         // for testing purpose:
     	LOGGER.log(Level.INFO,"username: " + org.getOrgname());
     	ModelAndView modelview = new ModelAndView();
-    	DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
+    	DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource();
     	 int orguserid = -1;
     	 OrgUser orguser = null;
          OrgUsersDao orgUserDao = new OrgUsersDaoImpl();

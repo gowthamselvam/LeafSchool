@@ -276,7 +276,7 @@ public class OrgUtil {
 	//						session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
 							OrgUtil.setUser(leafuser);
 							OrgUtil.setUserlid(leafuser.getLid());
-							DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
+							DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource();
 					        // Inject the datasource into the dao
 					    	OrgUsersDao userDAO = new OrgUsersDaoImpl();
 					    	userDAO.setDataSource(datasource);
@@ -318,7 +318,7 @@ public class OrgUtil {
 				user = (User) a.getPrincipal();
 				System.out.print("user::::"+user);
 				if(user!=null) {
-					DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource(); 
+					DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource(); 
 					OrgUsersDao userDAO = new OrgUsersDaoImpl();
 					userDAO.setDataSource(datasource);
 					orguser = userDAO.loadUserByUsername(user.getUsername());
@@ -334,7 +334,7 @@ public class OrgUtil {
 	}
 	
 	public static void initOrgDetails(HttpServletRequest request, OrgUser orgUser) throws Exception{
-		DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
+		DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource();
 		OrgUserRolesDao userRoleDao = new OrgUserRolesDaoImpl();
 		OrganizationDao orgDao = new OrganizationDaoImpl();
     	userRoleDao.setDataSource(datasource);
@@ -348,13 +348,14 @@ public class OrgUtil {
 			OrgUtil.setOrgDetails(orgDetails);
 			OrgUtil.setOrgId(orgDetails.getOrgid());
 			OrgUtil.setValidOrg(true);
-    	} else if(totalOrg > 1) { //If the customer has multiple orgs thant get orgid from the browser if the org id is null than load the default org of the user
+    	} else if(totalOrg > 1) { //If the customer has multiple orgs than get orgid from the browser if the org id is null than load the default org of the user
     		boolean isValidOrg = false;
     		String orgid = request.getParameter("orgid");
-    		List<OrgUserRole> orgUserRoles = userRoleDao.findAllOrg(orgUser.getLuid());
+    		JSONArray orgUserRoles = userRoleDao.findAllUserOrg(orgUser.getLuid());
     		if(orgid != null) {
     			int org = Integer.valueOf(orgid);
-    			for(OrgUserRole orgUserRole : orgUserRoles) {
+    			for(int i=0; i<orgUserRoles.length();i++) {
+    				OrgUserRole orgUserRole =(OrgUserRole) orgUserRoles.get(i);
     				if(org == orgUserRole.getOrgDetail().getOrgid()) {
     					isValidOrg = true;
     					OrgUtil.setOrgdb(CommonUtil.getOrgDb(orgUserRole.getOrgDetail().getOrgid()));

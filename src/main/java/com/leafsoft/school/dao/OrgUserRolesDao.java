@@ -4,6 +4,8 @@ import java.util.List;
 
 import javax.sql.DataSource;
 
+import org.json.JSONArray;
+
 import com.leafsoft.school.model.OrgDetail;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.model.OrgUserRole;
@@ -20,5 +22,7 @@ public interface OrgUserRolesDao {
 	
 	public OrgUserRole getSingleOrg(int luid);
 	
-	public List<OrgUserRole> findAllOrg(int luid);
+	public JSONArray findAllUserOrg(int luid);
+	
+	public JSONArray findAll();
 }

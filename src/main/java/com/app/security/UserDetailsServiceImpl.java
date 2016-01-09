@@ -36,7 +36,7 @@ public class UserDetailsServiceImpl implements AuthenticationUserDetailsService 
 		if (credentials != null && principal == true) {
 			int lid = credentials.getLid();
 			String name = credentials.getUsername();
-			DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
+			DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource();
 	    	OrgUsersDao orgUserDAO = new OrgUsersDaoImpl();
 	    	orgUserDAO.setDataSource(datasource);
 	    	
