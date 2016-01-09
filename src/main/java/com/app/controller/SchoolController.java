@@ -1,6 +1,8 @@
 package com.app.controller;
 
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -13,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.DefaultRedirectStrategy;
+import org.springframework.security.web.RedirectStrategy;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -29,6 +33,7 @@ import com.leafsoft.util.JSONUtil;
 @Controller
 public class SchoolController 
 {
+	private static Logger LOGGER = Logger.getLogger(SchoolController.class.getName());
 	@RequestMapping(value = {"/", "/welcome"})
 	public ModelAndView welcome(HttpServletRequest request) {
 
@@ -56,7 +61,7 @@ public class SchoolController
 	}
 	
 	@RequestMapping(value = {"/logoutsession"})
-	public ModelAndView logout(HttpServletRequest request, HttpServletResponse response) {
+	public void logout(HttpServletRequest request, HttpServletResponse response) {
 		OrgUtil.cleanup();
 		HttpSession session = request.getSession();
 		Cookie[] cookie_jar = request.getCookies();
@@ -84,12 +89,12 @@ public class SchoolController
 					}
 		}
 		SecurityContextHolder.clearContext();
-		ModelAndView model = new ModelAndView();
-		model.addObject("title", "SchoolManagement");
-		model.addObject("message", "Ooops!!!, It's seems that you did't made login on leafsoft, Please login/signup on the below link and then access school application! Thank you");
-		model.addObject("leafsofturl",AppResources.getInstance().getAccountsUrl());
-		model.setViewName("invaliduser");
-		return model;
+		try {
+		RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
+		redirectStrategy.sendRedirect(request, response, AppResources.getInstance().getAccountsUrl());
+		} catch(Exception e) {
+			LOGGER.log(Level.INFO,e.getMessage(),e);
+		}
 	}
 	
 	

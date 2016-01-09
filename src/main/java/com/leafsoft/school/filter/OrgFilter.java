@@ -40,14 +40,14 @@ public class OrgFilter implements Filter {
 			LOGGER.log(Level.INFO,"Filter:::::ip:"+request.getRemoteAddr());
 			if(request.getAttribute(Constants.DOES_NOT_NEED_ORGFILTER) == null || !Boolean.valueOf(request.getAttribute(Constants.DOES_NOT_NEED_ORGFILTER).toString())) {
 				OrgUtil.setCurrentUser(request);
+				LOGGER.log(Level.INFO,"OrgUtil.getUserlid():::"+OrgUtil.getUserlid());
+				LOGGER.log(Level.INFO,"OrgUtil.getOrgId():::"+OrgUtil.getOrgId());
+				LOGGER.log(Level.INFO,"OrgUtil.isValidOrg():::"+OrgUtil.isValidOrg());
 				if(OrgUtil.getUserlid() == null) {
-					//response.sendRedirect(AppResources.getInstance().getAccountsUrl());
-					//request.getServletContext().getContext("/").getRequestDispatcher("login").forward(request, response);
 					request.getRequestDispatcher("/invaliduser").forward(request, response);
 					return;
 				} else if(OrgUtil.getOrgId() == null) {
 					request.getRequestDispatcher("/register").forward(request, response);
-					//response.sendRedirect("register");
 					return;
 				} else if(!OrgUtil.isValidOrg()) {
 					request.getRequestDispatcher("/accessdenied").forward(request, response);

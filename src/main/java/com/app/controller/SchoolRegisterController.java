@@ -68,7 +68,7 @@ public class SchoolRegisterController {
         org.setOrgid(orgId);
         OrgUtil.setOrgdb("db"+orgId);
         OrgUtil.setOrgDetails(org);
-        modelview.setViewName("helloWorld");
+        modelview.setViewName("home");
         modelview.addObject("msg", "Your account has been created!");
         String serverName = request.getServerName();
         if(serverName.contains("localhost")) {
