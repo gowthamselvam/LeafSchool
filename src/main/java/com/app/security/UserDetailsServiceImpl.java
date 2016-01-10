@@ -1,13 +1,10 @@
 package com.app.security;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.GrantedAuthorityImpl;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
 import org.springframework.security.core.userdetails.User;
@@ -22,7 +19,6 @@ import com.leafsoft.school.dao.impl.OrgUsersDaoImpl;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.model.OrgUserRole;
 import com.leafsoft.user.LeafUser;
-import com.leafsoft.util.JdbcUtil;
 
 public class UserDetailsServiceImpl implements AuthenticationUserDetailsService {
 
@@ -36,13 +32,10 @@ public class UserDetailsServiceImpl implements AuthenticationUserDetailsService 
 		if (credentials != null && principal == true) {
 			int lid = credentials.getLid();
 			String name = credentials.getUsername();
-			DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
 	    	OrgUsersDao orgUserDAO = new OrgUsersDaoImpl();
-	    	orgUserDAO.setDataSource(datasource);
 	    	
 	    	OrgUser orguser = orgUserDAO.loadOrgUserByLid(lid);
 	    	OrgUserRolesDao orgroleDAO = new OrgUserRolesDaoImpl();
-	    	orgroleDAO.setDataSource(datasource);
 	    	if(OrgUtil.getOrgId() !=null && orguser.getLuid() == OrgUtil.getOwnerid()) {
 	    		OrgUserRole orgUserRole = orgroleDAO.loadOrgUserByLuid(orguser.getLuid(), OrgUtil.getOrgId());
 		    	if(orguser != null) {

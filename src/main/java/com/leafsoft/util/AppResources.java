@@ -14,19 +14,19 @@ public class AppResources {
 		return APPRESOURCES;
 	}
 	
-	public String getAccountsConnectionUrl() {
+	public String getOrgDBConnectionUrl() {
 		return DATABASE_RESOURCES.getProperty("spring.jdbc.connectionurl");
 	}
-	public String getAccountsDatabase() {
+	public String getOrgDBDatabase() {
 		return DATABASE_RESOURCES.getProperty("spring.jdbc.accountsdatabase");
 	}
 	public String getMysqlDriverClassName() {
 		return DATABASE_RESOURCES.getProperty("spring.jdbc.driverclass");
 	}
-	public String getAccountsUserName() {
+	public String getOrgDBUserName() {
 		return DATABASE_RESOURCES.getProperty("spring.jdbc.username");
 	}
-	public String getAccountsPassword() {
+	public String getOrgDBPassword() {
 		return DATABASE_RESOURCES.getProperty("spring.jdbc.password");
 	}
 	public String getTokeSecret() {

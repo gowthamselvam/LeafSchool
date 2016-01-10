@@ -1,0 +1,1177 @@
+/* $Id$*/
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package com.adventnet.store.reseller.restapi.utils;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.Set;
+import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.adventnet.db.api.RelationalAPI;
+import com.adventnet.ds.query.Column;
+import com.adventnet.ds.query.Criteria;
+import com.adventnet.ds.query.GroupByClause;
+import com.adventnet.ds.query.Join;
+import com.adventnet.ds.query.QueryConstants;
+import com.adventnet.ds.query.SelectQueryImpl;
+import com.adventnet.ds.query.Table;
+import com.adventnet.ds.query.UpdateQuery;
+import com.adventnet.ds.query.UpdateQueryImpl;
+import com.adventnet.iam.IAMUtil;
+import com.adventnet.iam.User;
+import com.adventnet.mfw.bean.BeanUtil;
+import com.adventnet.persistence.DataObject;
+import com.adventnet.persistence.Persistence;
+import com.adventnet.persistence.Row;
+import com.adventnet.reseller.CARDDETAILS;
+import com.adventnet.reseller.CUSTOMERCARDDETAILS;
+import com.adventnet.reseller.PAYPALEXPRESSCHECKOUT;
+import com.adventnet.reseller.RECURRINGCUSTOMERPAYMENT;
+import com.adventnet.reseller.RECURRINGCUSTOMERPROFILE;
+import com.adventnet.reseller.ZUIDPROFILEIDMAPPING;
+import com.adventnet.store.Constants;
+import com.adventnet.store.bean.BooksInvoiceDataBean;
+import com.adventnet.store.bean.GatewayBean;
+import com.adventnet.store.bean.ServiceBean;
+import com.adventnet.store.bean.StoreBean;
+import com.adventnet.store.bean.factory.GatewayBeanFactory;
+import com.adventnet.store.bean.impl.BooksInvoicePaymentsProcess;
+import com.adventnet.store.reseller.server.api.GateWayUtil;
+import com.adventnet.store.reseller.server.api.PartnerUtil;
+import com.adventnet.store.reseller.server.api.RecurringProfileUtil;
+import com.adventnet.store.reseller.server.api.ResellerCommissionUtil;
+import com.adventnet.store.reseller.server.bean.ReadBean;
+import com.adventnet.store.reseller.server.bean.UpdateBean;
+import com.adventnet.store.reseller.utils.BeanSelectorUtil;
+import com.adventnet.store.reseller.utils.DateAndTime;
+import com.adventnet.store.reseller.utils.StoreIAMUtils;
+import com.adventnet.store.util.InvoiceJsonUtil;
+import com.adventnet.store.util.JSONUtil;
+import com.adventnet.store.util.OrgUtil;
+import com.adventnet.store.util.PersistentUtil;
+import com.adventnet.store.util.SecretUtil;
+import com.adventnet.store.util.StoreUtil;
+import com.adventnet.store.util.SubscriptionUtil;
+import com.adventnet.store.util.TransactionFailure;
+import com.adventnet.store.util.ValidationUtil;
+import com.adventnet.store.util.ZSMUtil;
+
+/**
+ *
+ * @author udhaya-zu282
+ */
+public class RestAPIUtil {
+	private static final Logger LOGGER = Logger.getLogger(RestAPIUtil.class.getName());
+    public static String getRequestURI(HttpServletRequest request) {
+        return request.getRequestURI();
+    }
+    
+    public static String getRequestMethod(HttpServletRequest request) {
+        return request.getMethod();
+    }
+    
+    public static String getContentType(HttpServletRequest request) {
+        return request.getContentType();
+    }
+    
+    public static boolean validateContentType(String contentType) {
+        boolean result = false;
+        if(contentType != null && !"".equals(contentType)) {
+            if(contentType.equalsIgnoreCase("text/json")) {
+                result = true;
+            } else {
+                result = false;
+            }
+        } else {
+            result = false;
+        }
+        return result;
+    }
+    
+    public static PrintWriter getWriter(HttpServletResponse response) {
+        PrintWriter out = null;
+        try {
+            out = response.getWriter();
+        } catch(IOException ex) {
+            Logger.getLogger(RestAPIUtil.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return out;
+    }
+    
+    public static String getPlanDetails(String profileId) {
+        String configresult="";
+        Properties configprop=RecurringProfileUtil.getConfigValues(profileId);
+        if(configprop.size() > 0)
+        {                                    
+              Enumeration ev = configprop.propertyNames();
+              while (ev.hasMoreElements()) 
+              {
+                   String keys = (String) ev.nextElement();  
+                   String vals=configprop.getProperty(keys);
+                   configresult=configresult+vals+"&nbsp;"+keys+",";//No I18N                               
+              }
+        } else {
+              configresult="No Addons"; //No I18N  
+        }
+        return configresult;
+    }
+    
+    public static JSONArray getMergePaypalDetails(long zuid) throws Exception{
+    	JSONArray paypalArray = new JSONArray();
+    	List<String> oneZohoServices = getOneZohoServices();
+    	JSONArray unquiePaypalAccount = getUserPaypalDetailsByZuid(zuid,oneZohoServices,true);
+		for(int i=0; i<unquiePaypalAccount.length(); i++) {
+			JSONObject uniqueCard = unquiePaypalAccount.getJSONObject(i);
+			uniqueCard = getServiceDetailsByPaypal(uniqueCard,zuid);
+			paypalArray.put(uniqueCard);
+		}
+		JSONArray formattedPaypalArray = groupPaypalByPayPeriod(paypalArray);
+		return formattedPaypalArray;
+    }
+    
+    public static JSONArray getMergeCardDetails(long zuid) throws Exception {
+    	JSONArray cardArray = new JSONArray();
+    	List<String> mergeServices = getOneZohoServices();
+    	JSONArray unquieCards = getUserCardDetailsByZuid(zuid,mergeServices);
+    	for(int i=0; i<unquieCards.length(); i++) {
+    		JSONObject uniqueCard = unquieCards.getJSONObject(i);
+    		uniqueCard = getServiceDetailsByCard(uniqueCard,zuid);
+    		uniqueCard.put("card_type", getCardType(uniqueCard.getString("card_type")));
+    		cardArray.put(uniqueCard);
+    	}
+    	JSONArray formattedArray = groupCardsByPayPeriod(cardArray);
+    	return formattedArray;
+    }
+    
+    public static JSONObject getServiceDetails(Properties customerProp, Properties paymentProp,JSONArray addonArray) throws Exception {
+    	JSONObject serviceJson = new JSONObject();
+    	serviceJson.put("profile_id",customerProp.getProperty("PROFILEID"));
+    	serviceJson.put("service_id",paymentProp.getProperty("serviceid"));
+        serviceJson.put("service_name",StoreUtil.getServiceName(Long.valueOf(paymentProp.getProperty("serviceid"))));
+        serviceJson.put("service_display_name",StoreUtil.getServiceDisplayName(Long.valueOf(paymentProp.getProperty("serviceid"))));
+        serviceJson.put("email_id",customerProp.getProperty("EMAILID"));
+        serviceJson.put("status",customerProp.getProperty("STATUS").toLowerCase());
+        serviceJson.put("payperiod",paymentProp.getProperty("payperiod"));
+        serviceJson.put("planid",paymentProp.getProperty("planid"));
+        serviceJson.put("planname",paymentProp.getProperty("plandisplayname"));
+        serviceJson.put("next_payment_date",paymentProp.getProperty("npdate"));
+        serviceJson.put("next_payment_amount",paymentProp.getProperty("npamount"));
+        serviceJson.put("addon_string", getPlanDetails(customerProp.getProperty("PROFILEID")));
+        serviceJson.put("addons", addonArray);
+        return serviceJson;
+    }
+    
+    private static String getExcludedStr(String str1, String str2)  {
+    	if(str2 == null || str2.equals("")) {
+    		return str1;
+    	}
+    	
+    	List<String> list = Arrays.asList(str2.split(","));
+		String str3 = "";
+		for(String sId : str1.split(",")) {
+			if(!list.contains(sId)) {
+				str3 +=  sId + ",";
+			}
+		}
+		str3 = !str3.equals("") ? str3.substring(0,str3.length() - 1) : null;
+		return str3;
+    }
+    
+    public static JSONArray getUniqueCardDetailsByZuid(long zuid) throws Exception {
+    	JSONArray cardArray = new JSONArray();
+    	List<String> oneZohoServices = getOneZohoServices();
+    	JSONArray unquieCards = getUserCardDetailsByZuid(zuid,oneZohoServices);
+    	for(int i=0; i<unquieCards.length(); i++) {
+    		JSONObject uniqueCard = unquieCards.getJSONObject(i);
+    		uniqueCard = getServiceDetailsByCard(uniqueCard,zuid);
+    		uniqueCard.put("card_type", getCardType(uniqueCard.getString("card_type")));
+    		cardArray.put(uniqueCard);
+    	}
+    	JSONArray formattedArray = groupCardsByPayPeriod(cardArray);
+    	JSONArray unquiePaypalAccount = getUserPaypalDetailsByZuid(zuid,oneZohoServices,false);
+    	JSONArray paypalArray = new JSONArray();
+    	for(int i=0; i<unquiePaypalAccount.length(); i++) {
+    		JSONObject uniqueCard = unquiePaypalAccount.getJSONObject(i);
+    		uniqueCard = getServiceDetailsByPaypal(uniqueCard,zuid);
+    		paypalArray.put(uniqueCard);
+    	}
+    	JSONArray formattedPaypalArray = groupPaypalByPayPeriod(paypalArray);
+    	for(int i=0;i<formattedPaypalArray.length();i++) {
+    		formattedArray.put(formattedPaypalArray.get(i));
+    	}
+		return formattedArray;
+    }
+    
+    public static List<String> getOneZohoServices() {
+		List<String> result = new ArrayList<String>();
+		try {
+			String excludedServices = PersistentUtil.getInstance().getExcludedServicesOneZoho();
+			JSONObject zohoStoreServices = JSONUtil.getInstance().getServiceModelJSON().getJSONObject("ZOHOSTORE");//NO I18N
+	    	JSONObject newStoreServices = JSONUtil.getInstance().getServiceModelJSON().getJSONObject("NEWSTORE");//NO I18N
+			for(Iterator iter  = zohoStoreServices.keys(); iter.hasNext();) {
+	    		result.add(iter.next().toString());
+	    	}
+			for(Iterator iter  = newStoreServices.keys(); iter.hasNext();) {
+	    		result.add(iter.next().toString());
+	    	}
+			List<String> list = Arrays.asList(excludedServices.split(","));
+			for(int i=0;i<list.size();i++) {
+				result.remove(list.get(i));
+			}
+		} catch(Exception e) {
+			LOGGER.log(Level.SEVERE, ":::::::getMergeProfileServices::::::::"+e.getMessage(), e);
+		}
+		return result;
+	}
+
+    public static JSONArray  groupCardsByPayPeriod(JSONArray uniqueCards) throws JSONException {
+    	JSONArray resArray = new JSONArray();
+    	for(int i=0; i<uniqueCards.length(); i++) {
+    		JSONObject newJson = uniqueCards.getJSONObject(i);
+    		boolean isNewCard = true;
+    		for(int j=0;j<resArray.length();j++) {
+    			isNewCard = true;
+    		JSONObject existingJson = resArray.getJSONObject(j);
+    		if(existingJson.getString("cardnumber_four_digit").equalsIgnoreCase(newJson.getString("cardnumber_four_digit"))) {
+    			if(existingJson.getString("expiry_month").equalsIgnoreCase(newJson.getString("expiry_month"))) {
+    				if(existingJson.getString("expiry_year").equalsIgnoreCase(newJson.getString("expiry_year"))) {
+    					if(existingJson.getString("currency_id").equalsIgnoreCase(newJson.getString("currency_id"))) {
+    						if(existingJson.getString("card_type").equalsIgnoreCase(newJson.getString("card_type"))) {
+    							if(!existingJson.getString("payperiod").equalsIgnoreCase(newJson.getString("payperiod"))) {
+    								JSONArray newServiceArray = newJson.has("service_details") ? newJson.getJSONArray("service_details") : new JSONArray();//NO I18N
+    								JSONArray existingServiceArray = existingJson.has("service_details") ? existingJson.getJSONArray("service_details") : new JSONArray();//NO I18N
+    								for(int k=0;k<newServiceArray.length();k++) {
+    									existingServiceArray.put(newServiceArray.getJSONObject(k));
+    								}
+    								JSONObject existingTRA = existingJson.has("total_renewal_amounts") ? existingJson.getJSONObject("total_renewal_amounts") : new JSONObject();//NO I18N
+    								JSONObject newTRA = newJson.has("total_renewal_amounts") ? newJson.getJSONObject("total_renewal_amounts") : new JSONObject();//NO I18N
+    								existingTRA.put(newJson.getString("payperiod"), newTRA.has(newJson.getString("payperiod")) ? newTRA.getString(newJson.getString("payperiod")) : "0.00");
+    								JSONObject existingRD = existingJson.has("renewal_dates") ? existingJson.getJSONObject("renewal_dates") : new JSONObject();//NO I18N
+    								JSONObject newRD = newJson.has("renewal_dates") ? newJson.getJSONObject("renewal_dates") : new JSONObject();//NO I18N
+    								existingRD.put(newJson.getString("payperiod"), newRD.has(newJson.getString("payperiod")) ? newRD.getString(newJson.getString("payperiod")) : "-");
+    								JSONArray newProfiles = newJson.has("profiles") ? newJson.getJSONArray("profiles") : new JSONArray();//NO I18N
+    								JSONArray existingProfiles = existingJson.has("profiles") ? existingJson.getJSONArray("profiles") : new JSONArray();//NO I18N
+    								for(int k=0;k<newServiceArray.length();k++) {
+    									existingProfiles.put(newProfiles.getString(k));
+    								}
+    								isNewCard = false;
+    								break;
+    				    		}
+    			    		}
+    		    		}
+    	    		}
+        		}
+    		}
+    		}
+    		if(isNewCard) {
+    			resArray.put(newJson);
+    		}
+    	}
+    	return resArray;
+    }
+    
+    public static JSONArray  groupPaypalByPayPeriod(JSONArray uniquepaypal) throws JSONException {
+    	JSONArray resArray = new JSONArray();
+    	for(int i=0; i<uniquepaypal.length(); i++) {
+    		JSONObject newJson = uniquepaypal.getJSONObject(i);
+    		boolean isNewCard = true;
+    		for(int j=0;j<resArray.length();j++) {
+    			isNewCard = true;
+    		JSONObject existingJson = resArray.getJSONObject(j);
+    		if(existingJson.getString("baid").equalsIgnoreCase(newJson.getString("baid"))) {
+					if(existingJson.getString("currency_id").equalsIgnoreCase(newJson.getString("currency_id"))) {
+						if(!existingJson.getString("payperiod").equalsIgnoreCase(newJson.getString("payperiod"))) {
+							JSONArray newServiceArray = newJson.has("service_details") ? newJson.getJSONArray("service_details") : new JSONArray();//NO I18N
+							JSONArray existingServiceArray = existingJson.has("service_details") ? existingJson.getJSONArray("service_details") : new JSONArray();//NO I18N
+							for(int k=0;k<newServiceArray.length();k++) {
+								existingServiceArray.put(newServiceArray.getJSONObject(k));
+							}
+							JSONObject existingTRA = existingJson.has("total_renewal_amounts") ? existingJson.getJSONObject("total_renewal_amounts") : new JSONObject();//NO I18N
+							JSONObject newTRA = newJson.has("total_renewal_amounts") ? newJson.getJSONObject("total_renewal_amounts") : new JSONObject();//NO I18N
+							existingTRA.put(newJson.getString("payperiod"), newTRA.has(newJson.getString("payperiod")) ? newTRA.getString(newJson.getString("payperiod")) : "0.00");
+							JSONObject existingRD = existingJson.has("renewal_dates") ? existingJson.getJSONObject("renewal_dates") : new JSONObject();//NO I18N
+							JSONObject newRD = newJson.has("renewal_dates") ? newJson.getJSONObject("renewal_dates") : new JSONObject();//NO I18N
+							existingRD.put(newJson.getString("payperiod"), newRD.has(newJson.getString("payperiod")) ? newRD.getString(newJson.getString("payperiod")) : "-");
+							JSONArray newProfiles = newJson.has("profiles") ? newJson.getJSONArray("profiles") : new JSONArray();//NO I18N
+							JSONArray existingProfiles = existingJson.has("profiles") ? existingJson.getJSONArray("profiles") : new JSONArray();//NO I18N
+							for(int k=0;k<newServiceArray.length();k++) {
+								existingProfiles.put(newProfiles.getString(k));
+							}
+							isNewCard = false;
+							break;
+			    		}
+		    		}
+	    		}
+    		}
+    		if(isNewCard) {
+    			resArray.put(newJson);
+    		}
+    	}
+    	return resArray;
+    }
+    
+    public static JSONObject getServiceDetailsByCard(JSONObject cardDetails,long zuid) {
+    	try
+        {
+    		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");//NO I18N
+            Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+            SelectQueryImpl qry = new SelectQueryImpl(new Table(RECURRINGCUSTOMERPAYMENT.TABLE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_AMOUNT));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.SERVICEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PLANID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.ID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.PROFILEID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.CUSTOMERCARD));
+            qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,"*"));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.EMAILID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,CUSTOMERCARDDETAILS.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {CUSTOMERCARDDETAILS.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,CARDDETAILS.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {CARDDETAILS.PROFILEID},Join.LEFT_JOIN));
+            Criteria crit = new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT),cardDetails.getString("cardnumber_four_digit"),QueryConstants.EQUAL);
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_TYPE), cardDetails.getString("card_type"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_MONTH), cardDetails.getInt("expiry_month"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_YEAR), cardDetails.getInt("expiry_year"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID), cardDetails.getInt("currency_id"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID),zuid,QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE), cardDetails.getString("next_payment_date"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD), cardDetails.getString("payperiod"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE), sdf.format(new Date())+" 00:00:00", QueryConstants.GREATER_THAN));
+            qry.setCriteria(crit);
+//            String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//            LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+            DataObject dob = per.get(qry);
+            JSONArray serviceArray = new JSONArray();
+            if(!(dob.isEmpty()))
+            {
+                Iterator itr = dob.getRows(RECURRINGCUSTOMERPAYMENT.TABLE);
+                JSONObject renewalAmountJson = new JSONObject();
+                JSONObject renewalDateJson = new JSONObject();
+                JSONArray profileArray = new JSONArray();
+                while(itr.hasNext()) {
+                	JSONObject serviceObj = new JSONObject();
+                	Row row = (Row) itr.next();
+                	Row cardRow = dob.getRow(CARDDETAILS.TABLE, row);
+                	DecimalFormat df = new DecimalFormat("#.00"); 
+                	String customerCard = (cardRow != null && cardRow.get(CARDDETAILS.CUSTOMERCARD) !=null) ? cardRow.get(CARDDETAILS.CUSTOMERCARD).toString() : Constants.CUSTOMERCARD;
+	                	if(customerCard.equals(Constants.CUSTOMERCARD)) {
+		                	String profileId = row.get(RECURRINGCUSTOMERPAYMENT.PROFILEID).toString();
+		                	profileArray.put(profileId);
+		                	serviceObj.put("profile_id",profileId);
+		                	serviceObj.put("service_id", row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString());
+		                	serviceObj.put("service_name",StoreUtil.getServiceName(Long.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString())));
+		                    serviceObj.put("service_display_name",StoreUtil.getServiceDisplayName(Long.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString())));
+		                    String payPeriod = row.get(RECURRINGCUSTOMERPAYMENT.PAYPERIOD).toString();
+		                    serviceObj.put("payperiod",payPeriod);
+		                    String planid = row.get(RECURRINGCUSTOMERPAYMENT.PLANID).toString();
+		                    serviceObj.put("planid",planid);
+		                    serviceObj.put("planname",BeanSelectorUtil.getReadBean().getPlanDisplayName(planid));
+		                    String npdate= row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE)!=null ? DateAndTime.convertStringFromStringDate(row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE).toString(),ResellerCommissionUtil.EXISTINGDBDATEFORMAT,ResellerCommissionUtil.NEWDATEFORMAT) : "-";
+		                    serviceObj.put("next_payment_date",npdate);
+		                    double nextPaymentAmount = Double.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_AMOUNT).toString());
+		                    serviceObj.put("next_payment_amount",df.format(Double.valueOf(nextPaymentAmount)));
+		                    serviceObj.put("addon_string", getPlanDetails(profileId));
+		                    Row profileRow = dob.getRow(RECURRINGCUSTOMERPROFILE.TABLE, row);
+		                    serviceObj.put("email_id",profileRow.get(RECURRINGCUSTOMERPROFILE.EMAILID).toString());
+		                    serviceObj.put("status",profileRow.get(RECURRINGCUSTOMERPROFILE.STATUS).toString());
+		                    JSONArray addonArray = BeanSelectorUtil.getReadBean().getAddonDetails(profileId);
+		                    serviceObj.put("addons", addonArray);
+		                    if(renewalAmountJson.has(payPeriod)) {
+		                    	double tra = Double.valueOf(renewalAmountJson.getString(payPeriod))+nextPaymentAmount;
+		                    	renewalAmountJson.put(payPeriod, df.format(Double.valueOf(tra)));
+		                    } else {
+		                    	renewalAmountJson.put(payPeriod,df.format(Double.valueOf(nextPaymentAmount)));
+		                    }
+		                	renewalDateJson.put(payPeriod,npdate);
+		                    cardDetails.put("renewal_dates",renewalDateJson);
+		                    cardDetails.put("total_renewal_amounts",renewalAmountJson);
+		                    serviceArray.put(serviceObj);
+	                }
+                }
+                String currencyCode = SubscriptionUtil.getCurrencyCode(cardDetails.getString("currency_id"));
+            	String currencySymbol = SubscriptionUtil.getCurrencySymbol(currencyCode);
+            	JSONObject possible_switch = new JSONObject();
+            	possible_switch.put("credit_card", true);
+            	possible_switch.put("paypal", false);
+            	cardDetails.put("possible_switchs", possible_switch);
+                cardDetails.put("billing_type", "credit_card");
+                cardDetails.put("currency", currencyCode);
+                cardDetails.put("currency_symbol", currencySymbol);
+                cardDetails.put("service_details", serviceArray);
+                cardDetails.remove("next_payment_date");//NO I18N
+                cardDetails.put("profiles", profileArray);
+            }      
+        }
+        catch(Exception e)
+        {
+        	LOGGER.log(Level.INFO,"getServiceDetailsByCard():::::::"+e);
+        }
+    	return cardDetails;
+    }
+
+    public static JSONArray getUserCardDetailsByZuid(long zuid,List<String> services)
+    {
+    	JSONArray cardArray = new JSONArray();
+        try
+        {
+            Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+            SelectQueryImpl qry = new SelectQueryImpl(new Table(CUSTOMERCARDDETAILS.TABLE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.SERVICEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+            qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,"*"));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.ID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.PROFILEID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.CUSTOMERCARD));
+            qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,RECURRINGCUSTOMERPAYMENT.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,CARDDETAILS.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {CARDDETAILS.PROFILEID},Join.LEFT_JOIN));
+            Criteria crit = new Criteria(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID),zuid,QueryConstants.EQUAL);
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID), Constants.PAIDPREFIX,QueryConstants.STARTS_WITH));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT),"XXXX",QueryConstants.NOT_EQUAL));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT),"PayPal",QueryConstants.NOT_EQUAL));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_TYPE),"PayPal",QueryConstants.NOT_EQUAL));
+            crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_TYPE),Constants.MOBILE,QueryConstants.NOT_EQUAL));
+            if(services != null && !services.equals("")) {
+            	crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.SERVICEID), services.toArray(), QueryConstants.IN));
+            }
+            qry.setCriteria(crit);
+            List<Column> groupList = new ArrayList<Column>(); 
+            groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT));
+            groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_TYPE));
+            groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_MONTH));
+            groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_YEAR));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            GroupByClause gr = new GroupByClause(groupList); 
+            qry.setGroupByClause(gr);
+//            String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//            LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+            DataObject dob = per.get(qry);
+            if(!(dob.isEmpty()))
+            {
+                Iterator itr = dob.getRows(CUSTOMERCARDDETAILS.TABLE);
+                while(itr.hasNext()) {
+                	JSONObject cardJson = new JSONObject();
+                	Row row = (Row) itr.next();
+                	Row cardRow = dob.getRow(CARDDETAILS.TABLE, row);
+                	String customerCard = (cardRow != null && cardRow.get(CARDDETAILS.CUSTOMERCARD) !=null) ? cardRow.get(CARDDETAILS.CUSTOMERCARD).toString() : Constants.CUSTOMERCARD;
+	                	if(customerCard.equals(Constants.CUSTOMERCARD)) {
+		                	cardJson.put("state",row.get(CUSTOMERCARDDETAILS.STATE)!=null ? (String)row.get(CUSTOMERCARDDETAILS.STATE) : "");
+		                	cardJson.put("city", row.get(CUSTOMERCARDDETAILS.CITY) != null ? (String)row.get(CUSTOMERCARDDETAILS.CITY) : "");
+		                	cardJson.put("zip_code", row.get(CUSTOMERCARDDETAILS.ZIPCODE) != null ? (String)row.get(CUSTOMERCARDDETAILS.ZIPCODE) : "");
+		                	cardJson.put("address", (String)row.get(CUSTOMERCARDDETAILS.ADDRESS));
+		                	cardJson.put("country", (String)row.get(CUSTOMERCARDDETAILS.COUNTRY));
+		                	cardJson.put("card_type",(String)row.get(CUSTOMERCARDDETAILS.CARD_TYPE));
+		                	cardJson.put("first_name",row.get(CUSTOMERCARDDETAILS.FIRSTNAME) != null ? row.get(CUSTOMERCARDDETAILS.FIRSTNAME).toString() : "");
+		                	cardJson.put("cardnumber_first_four_digit",row.get(CUSTOMERCARDDETAILS.CARD_FIRST_FOUR_DIGIT) != null ? row.get(CUSTOMERCARDDETAILS.CARD_FIRST_FOUR_DIGIT).toString() : "XXXX");
+		                	cardJson.put("cardnumber_four_digit",(String)row.get(CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT));
+		                	cardJson.put("expiry_month",(Integer)row.get(CUSTOMERCARDDETAILS.EXPIRY_MONTH));
+		                	cardJson.put("expiry_year",(Integer)row.get(CUSTOMERCARDDETAILS.EXPIRY_YEAR));
+		                	Row paymentRow = dob.getRow(RECURRINGCUSTOMERPAYMENT.TABLE, row);
+		                	cardJson.put("currency_id",paymentRow.get(RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+		                	cardJson.put("next_payment_date",paymentRow.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE).toString());
+		                	cardJson.put("payperiod",paymentRow.get(RECURRINGCUSTOMERPAYMENT.PAYPERIOD).toString());
+		                	cardArray.put(cardJson);
+	                	}
+                }
+            }      
+        }
+        catch(Exception e)
+        {
+        	LOGGER.log(Level.INFO,"getUserCardDetailsByZuid():::"+e);
+        }
+        return  cardArray;
+    }
+    
+    public static String getCardType(String cardType) {
+    	String card_type = cardType;
+    	if(cardType !=null && (cardType.equalsIgnoreCase("Visa"))) {
+    		card_type = "visa";//NO I18N
+		} else if(cardType !=null && cardType.equalsIgnoreCase("MasterCard") || cardType.equalsIgnoreCase("Master Card")) {
+			card_type = "mastercard";//NO I18N
+		} else if(cardType !=null && (cardType.equalsIgnoreCase("AmericanExpress") || cardType.equalsIgnoreCase("American Express") || cardType.equalsIgnoreCase("AMEX"))) {
+			card_type = "amex";//NO I18N
+		} else if(cardType !=null && cardType.equalsIgnoreCase("Diners Club") || cardType.equalsIgnoreCase("DinersClub")) {
+			card_type = "dinersclub";//NO I18N
+		}
+    	return card_type.toLowerCase();
+    }
+  
+    
+    public static JSONArray getUserPaypalDetailsByZuid(long zuid,List<String> services,boolean isMerge)
+    {
+    	JSONArray cardArray = new JSONArray();
+        try
+        {
+            Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+            SelectQueryImpl qry = new SelectQueryImpl(new Table(PAYPALEXPRESSCHECKOUT.TABLE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.ID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.PROFILEID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.EMAILID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.STATUS));
+            qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_ID));
+            qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.PROFILEID));
+            qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.FIRSTNAME));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.ID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.PROFILEID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.CUSTOMERCARD));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,RECURRINGCUSTOMERPAYMENT.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,CUSTOMERCARDDETAILS.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {CUSTOMERCARDDETAILS.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,CARDDETAILS.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {CARDDETAILS.PROFILEID},Join.LEFT_JOIN));
+            Criteria crit = new Criteria(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID),zuid,QueryConstants.EQUAL);
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID), Constants.PAIDPREFIX,QueryConstants.STARTS_WITH));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+            if(isMerge) {
+            	crit = crit.and(new Criteria(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.STATUS),Constants.PROFILE_CREATED,QueryConstants.EQUAL));
+            }
+            crit = crit.and(new Criteria(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID),"-1",QueryConstants.NOT_EQUAL));
+            if(services != null && !services.equals("")) {
+            	crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.SERVICEID), services.toArray(), QueryConstants.IN));
+            }
+            qry.setCriteria(crit);
+            List<Column> groupList = new ArrayList<Column>(); 
+            groupList.add(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            GroupByClause gr = new GroupByClause(groupList); 
+            qry.setGroupByClause(gr);
+//            String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//	          LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+            DataObject dob = per.get(qry);
+            
+            if(!(dob.isEmpty()))
+            {
+                Iterator itr = dob.getRows(PAYPALEXPRESSCHECKOUT.TABLE);
+                while(itr.hasNext()) {
+	                	JSONObject cardJson = new JSONObject();
+	                	Row row = (Row) itr.next();
+	                	Row cardRow = dob.getRow(CARDDETAILS.TABLE, row);
+	                	String customerCard = (cardRow != null && cardRow.get(CARDDETAILS.CUSTOMERCARD) !=null) ? cardRow.get(CARDDETAILS.CUSTOMERCARD).toString() : Constants.CUSTOMERCARD;
+	                	if(customerCard.equals(Constants.CUSTOMERCARD)) {
+		                	cardJson.put("paypal_email",(String)row.get(PAYPALEXPRESSCHECKOUT.EMAILID));
+		                	cardJson.put("baid",(String)row.get(PAYPALEXPRESSCHECKOUT.BAID));
+		                	Row paymentRow = dob.getRow(RECURRINGCUSTOMERPAYMENT.TABLE, row);
+		                	cardJson.put("currency_id",paymentRow.get(RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+		                	cardJson.put("payperiod",paymentRow.get(RECURRINGCUSTOMERPAYMENT.PAYPERIOD).toString());
+		                	cardJson.put("next_payment_date",paymentRow.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE).toString());
+		                	Row customerCardRow = dob.getRow(CUSTOMERCARDDETAILS.TABLE, row);
+		                	cardJson.put("first_name",(String)customerCardRow.get(CUSTOMERCARDDETAILS.FIRSTNAME));
+		                	Properties baiddetails = GateWayUtil.getBaidStatus((String)row.get(PAYPALEXPRESSCHECKOUT.BAID),(String)row.get(PAYPALEXPRESSCHECKOUT.PROFILEID));
+							if(baiddetails!=null && baiddetails.get("RESULT").toString().equals("0") && baiddetails.get("BA_STATUS").toString().equalsIgnoreCase("Active") || !isMerge) {
+								cardArray.put(cardJson);
+							}
+	                }
+	            }
+            }      
+        }
+        catch(Exception e)
+        {
+        	LOGGER.log(Level.INFO,"getUserPaypalDetailsByZuid():::::::"+e);
+        }
+        return  cardArray;
+    }
+    
+    public static JSONObject getServiceDetailsByPaypal(JSONObject cardDetails,long zuid) {
+    	try
+        {
+    		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");//NO I18N
+            Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+            SelectQueryImpl qry = new SelectQueryImpl(new Table(RECURRINGCUSTOMERPAYMENT.TABLE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.SERVICEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_AMOUNT));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PLANID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PAYPERIOD));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.EMAILID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.ID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.PROFILEID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.EMAILID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.ID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.PROFILEID));
+            qry.addSelectColumn(new Column(CARDDETAILS.TABLE,CARDDETAILS.CUSTOMERCARD));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,PAYPALEXPRESSCHECKOUT.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(RECURRINGCUSTOMERPAYMENT.TABLE,CARDDETAILS.TABLE,new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},new String[] {CARDDETAILS.PROFILEID},Join.LEFT_JOIN));
+            Criteria crit = new Criteria(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID),cardDetails.getString("baid"),QueryConstants.EQUAL);
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID), cardDetails.getInt("currency_id"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID),zuid,QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE), cardDetails.getString("next_payment_date"),QueryConstants.EQUAL));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE), sdf.format(new Date())+" 00:00:00", QueryConstants.GREATER_THAN));
+            qry.setCriteria(crit);
+//	          String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//	          LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+            DataObject dob = per.get(qry);
+            JSONArray serviceArray = new JSONArray();
+            DecimalFormat df = new DecimalFormat("#.00");
+            if(!(dob.isEmpty()))
+            {
+                Iterator itr = dob.getRows(RECURRINGCUSTOMERPAYMENT.TABLE);
+                JSONObject renewalAmountJson = new JSONObject();
+                JSONObject renewalDateJson = new JSONObject();
+                JSONArray profileArray = new JSONArray();
+                boolean canShowCreditCardSwitch = true;
+                while(itr.hasNext()) {
+                	JSONObject serviceObj = new JSONObject();
+                	Row row = (Row) itr.next();
+                	Row cardRow = dob.getRow(CARDDETAILS.TABLE, row);
+                	String customerCard = (cardRow != null && cardRow.get(CARDDETAILS.CUSTOMERCARD) !=null) ? cardRow.get(CARDDETAILS.CUSTOMERCARD).toString() : Constants.CUSTOMERCARD;
+                	if(customerCard.equals(Constants.CUSTOMERCARD)) {
+	                	String profileId = row.get(RECURRINGCUSTOMERPAYMENT.PROFILEID).toString();
+	                	profileArray.put(profileId);
+	                	serviceObj.put("profile_id",profileId);
+	                	serviceObj.put("service_id", row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString());
+	                	if(row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString().equals("4601") || row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString().equals("601")) {
+	                		canShowCreditCardSwitch = false;
+	                	}
+	                	serviceObj.put("service_name",StoreUtil.getServiceName(Long.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString())));
+	                    serviceObj.put("service_display_name",StoreUtil.getServiceDisplayName(Long.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.SERVICEID).toString())));
+	                    String payPeriod = row.get(RECURRINGCUSTOMERPAYMENT.PAYPERIOD).toString();
+	                    serviceObj.put("payperiod",payPeriod);
+	                    String planid = row.get(RECURRINGCUSTOMERPAYMENT.PLANID).toString();
+	                    serviceObj.put("planid",planid);
+	                    serviceObj.put("planname",BeanSelectorUtil.getReadBean().getPlanDisplayName(planid));
+	                    String npdate= row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE)!=null ? DateAndTime.convertStringFromStringDate(row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE).toString(),ResellerCommissionUtil.EXISTINGDBDATEFORMAT,ResellerCommissionUtil.DBDATEFORMAT) : "-";
+	                    serviceObj.put("next_payment_date", npdate);
+	                    npdate= row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE)!=null ? DateAndTime.convertStringFromStringDate(row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE).toString(),ResellerCommissionUtil.EXISTINGDBDATEFORMAT,ResellerCommissionUtil.NEWDATEFORMAT) : "-";
+	                    serviceObj.put("display_next_payment_date",npdate);
+	                    double nextPaymentAmount = Double.valueOf(row.get(RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_AMOUNT).toString());
+	                    serviceObj.put("next_payment_amount",df.format(Double.valueOf(nextPaymentAmount)));
+	                    serviceObj.put("addon_string", getPlanDetails(profileId));
+	                    Row profileRow = dob.getRow(RECURRINGCUSTOMERPROFILE.TABLE, row);
+	                    serviceObj.put("email_id",profileRow.get(RECURRINGCUSTOMERPROFILE.EMAILID).toString());
+	                    serviceObj.put("status",profileRow.get(RECURRINGCUSTOMERPROFILE.STATUS).toString());
+	                    JSONArray addonArray = BeanSelectorUtil.getReadBean().getAddonDetails(profileId);
+	                    serviceObj.put("addons", addonArray);
+	                    if(renewalAmountJson.has(payPeriod)) {
+	                    	double tra = Double.valueOf(renewalAmountJson.getString(payPeriod))+nextPaymentAmount;
+	                    	renewalAmountJson.put(payPeriod, df.format(Double.valueOf(tra)));
+	                    } else {
+	                    	renewalAmountJson.put(payPeriod,df.format(Double.valueOf(nextPaymentAmount)));
+	                    }
+	                	renewalDateJson.put(payPeriod,npdate);
+	                    cardDetails.put("renewal_dates",renewalDateJson);
+	                    cardDetails.put("total_renewal_amounts",renewalAmountJson);
+	                    serviceArray.put(serviceObj);
+	                }
+                }
+                String currencyCode = SubscriptionUtil.getCurrencyCode(cardDetails.getString("currency_id"));
+            	String currencySymbol = SubscriptionUtil.getCurrencySymbol(currencyCode);
+            	JSONObject possible_switch = new JSONObject();
+            	possible_switch.put("credit_card", canShowCreditCardSwitch);
+            	possible_switch.put("paypal", false);
+            	cardDetails.put("possible_switchs", possible_switch);
+                cardDetails.put("billing_type", "PayPal");
+                cardDetails.put("currency", currencyCode);
+                cardDetails.put("currency_symbol", currencySymbol);
+                cardDetails.put("service_details", serviceArray);
+                cardDetails.put("card_type","paypal");
+                cardDetails.put("profiles", profileArray);
+                cardDetails.remove("next_payment_date");//NO I18N
+            }      
+        }
+        catch(Exception e)
+        {
+        	LOGGER.log(Level.INFO,"getServiceDetailsByPaypal():::"+e);
+        }
+    	return cardDetails;
+    }
+    
+    public static boolean isValidProfiles(JSONArray profiles,long zuid) throws JSONException {
+    	boolean valid = true;
+    	ReadBean readbean = BeanSelectorUtil.getReadBean();
+    	for(int i=0;i<profiles.length();i++) {
+    		String profileid = profiles.getString(i);
+    		String p_zuid[] = readbean.getZuidsGivenPId(profileid);
+    		if(!isContains(p_zuid,String.valueOf(zuid))) {
+    			valid = false;
+    			break;
+    		}
+    	}
+    	return valid;
+    }
+    
+    public static boolean isContains(String[] stringArray,String string) {
+    	boolean isContains = false;
+    	for(int i=0;i<stringArray.length;i++) {
+    		if(stringArray[i].equals(string)) {
+    			return true;
+    		}
+    	}
+    	return isContains;
+    }
+    
+    public static boolean isValidPaypalBAID(JSONArray profiles,long zuid) throws Exception
+    {
+    	List<String> profilesList = new ArrayList<String>();
+    	for(int i = 0; i < profiles.length(); i++){
+    		profilesList.add(profiles.getString(i));
+    	}
+    	JSONArray cardArray = new JSONArray();
+        try
+        {
+            Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+            SelectQueryImpl qry = new SelectQueryImpl(new Table(PAYPALEXPRESSCHECKOUT.TABLE));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+            qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+            qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.ID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.PROFILEID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.EMAILID));
+            qry.addSelectColumn(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.STATUS));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,RECURRINGCUSTOMERPAYMENT.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+            qry.addJoin(new Join(PAYPALEXPRESSCHECKOUT.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {PAYPALEXPRESSCHECKOUT.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+            Criteria crit = new Criteria(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID),zuid,QueryConstants.EQUAL);
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID), Constants.PAIDPREFIX,QueryConstants.STARTS_WITH));
+            crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+            crit = crit.and(new Criteria(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.PROFILEID),profilesList.toArray(),QueryConstants.IN));
+            crit = crit.and(new Criteria(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.STATUS),Constants.BAID_CANCELED,QueryConstants.NOT_EQUAL));
+            qry.setCriteria(crit);
+            List<Column> groupList = new ArrayList<Column>(); 
+            groupList.add(new Column(PAYPALEXPRESSCHECKOUT.TABLE,PAYPALEXPRESSCHECKOUT.BAID));
+            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+//            groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+            groupList.add(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+            GroupByClause gr = new GroupByClause(groupList); 
+            qry.setGroupByClause(gr);
+//            String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//            LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+            DataObject dob = per.get(qry);
+            if(dob.size(PAYPALEXPRESSCHECKOUT.TABLE) == 1) {
+            	return true;
+            }
+        }
+        catch(Exception e)
+        {
+        	LOGGER.log(Level.INFO,"isValidPaypalBAID():::::::"+e);
+        }
+        return  false;
+    }
+    
+    public static boolean isValidProfileCard(JSONArray profiles,long zuid) throws JSONException 
+    	{
+        	List<String> profilesList = new ArrayList<String>();
+        	for(int i = 0; i < profiles.length(); i++){
+        		profilesList.add(profiles.getString(i));
+        	}
+            try
+            {
+                Persistence per = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+                SelectQueryImpl qry = new SelectQueryImpl(new Table(CUSTOMERCARDDETAILS.TABLE));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.PROFILEID));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.ID));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+                qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ID));
+                qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.PROFILEID));
+                qry.addSelectColumn(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.CUSTOMERID));
+                qry.addSelectColumn(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID));
+                qry.addSelectColumn(new Column(CUSTOMERCARDDETAILS.TABLE,"*"));
+                qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,RECURRINGCUSTOMERPAYMENT.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {RECURRINGCUSTOMERPAYMENT.PROFILEID},Join.INNER_JOIN));
+                qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,RECURRINGCUSTOMERPROFILE.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {RECURRINGCUSTOMERPROFILE.PROFILEID},Join.INNER_JOIN));
+                qry.addJoin(new Join(CUSTOMERCARDDETAILS.TABLE,ZUIDPROFILEIDMAPPING.TABLE,new String[] {CUSTOMERCARDDETAILS.PROFILEID},new String[] {ZUIDPROFILEIDMAPPING.PROFILEID},Join.INNER_JOIN));
+                Criteria crit = new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.PROFILEID), Constants.PAIDPREFIX,QueryConstants.STARTS_WITH);
+                crit = crit.and(new Criteria(new Column(RECURRINGCUSTOMERPROFILE.TABLE,RECURRINGCUSTOMERPROFILE.STATUS),Constants.ACTIVE,QueryConstants.EQUAL, false));
+                crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT),"XXXX",QueryConstants.NOT_EQUAL));
+                crit = crit.and(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.PROFILEID),profilesList.toArray(),QueryConstants.IN));
+                qry.setCriteria(crit);
+                List<Column> groupList = new ArrayList<Column>(); 
+                groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT));
+                groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.CARD_TYPE));
+                groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_MONTH));
+                groupList.add(new Column(CUSTOMERCARDDETAILS.TABLE,CUSTOMERCARDDETAILS.EXPIRY_YEAR));
+                groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.CURRENCYID));
+                //groupList.add(new Column(RECURRINGCUSTOMERPAYMENT.TABLE,RECURRINGCUSTOMERPAYMENT.NEXT_PAYMENT_DATE));
+                groupList.add(new Column(ZUIDPROFILEIDMAPPING.TABLE,ZUIDPROFILEIDMAPPING.ZUID));
+                GroupByClause gr = new GroupByClause(groupList); 
+                qry.setGroupByClause(gr);
+//                String qry1 = RelationalAPI.getInstance().getSelectSQL(qry);
+//                LOGGER.log(Level.INFO,"ERROR:::::"+qry1);
+                DataObject dob = per.get(qry);
+                int size = dob.size(CUSTOMERCARDDETAILS.TABLE);
+                if(size == 1) {
+                	return true;
+                }
+                  
+            }
+            catch(Exception e)
+            {
+            	LOGGER.log(Level.INFO,"isValidProfileCard():::::::"+e);
+            }
+            return  false;
+        }
+    
+    public static JSONObject switchFromCardToCard(JSONArray profiles,JSONObject card_details,String remoteAddr) throws Exception{
+    	JSONObject result = new JSONObject();
+    	ReadBean readbean = BeanSelectorUtil.getReadBean();
+    	List<String> mergedProfilesList = new ArrayList<String>();
+    	for(int i=0 ; i<profiles.length(); i++) {
+    		String profileId = profiles.getString(i);
+    		if(!mergedProfilesList.contains(profileId)) {
+	    		String origProfileId = BeanSelectorUtil.getReadBean().getOriginalProfile(profileId);
+	    		origProfileId = (origProfileId == null || origProfileId.equals("")) ? profileId : origProfileId;
+	    		Set<String> psuedoProfile = readbean.getPseudoProfiles(origProfileId);
+	    		StoreBean storeBean = (StoreBean) BeanUtil.lookup(Constants.STOREBEAN);
+	    		User user = IAMUtil.getCurrentUser();
+        		String language = StoreIAMUtils.getLanguage(user);
+        		String serviceId = readbean.getServiceId(profileId);
+        		String zid = readbean.getZuid(profileId);
+        		OrgUtil.setOwnerId(zid);
+        		OrgUtil.init(user);
+    			result = storeBean.setCreditCard(Long.valueOf(serviceId), user, new Locale(language), card_details, Constants.CAUSEDBY_USER, remoteAddr);
+	    		for(String profileid: psuedoProfile) {
+					mergedProfilesList.add(profileid);
+	    		}
+	    	}	
+    	}
+    	return result;
+    	
+    }
+    
+    public static JSONObject switchBetweenPaypalAndCreditCard(long serviceId, User user, Locale locale,
+			JSONObject creditCard, String causedBy, String remoteIp) throws Exception {
+    	StoreBean storeBean = (StoreBean) BeanUtil.lookup(Constants.STOREBEAN);
+    	ReadBean readbean = BeanSelectorUtil.getReadBean();
+		JSONObject serviceJSON = JSONUtil.getInstance().getServicesJSON().getJSONObject(String.valueOf(serviceId));
+		JSONObject subscription = null;
+		if(serviceJSON.has(Constants.CREDIT_TYPE) && serviceJSON.getBoolean(Constants.CREDIT_TYPE)) {
+			subscription = storeBean.getSubscription(serviceId, null, false, null, Constants.PROFILETYPE_ONLINE);
+		} else {
+			subscription = storeBean.getSubscription(serviceId, null, true);
+		}
+		subscription.put(Constants.BUYERZUID, user.getZUID());
+		JSONObject result;
+		boolean forcePayments = false;
+		JSONObject servicemodel_config = JSONUtil.getInstance().getServiceModelJSON().getJSONObject("NEWSTORE");//NO I18N
+		if(creditCard!=null && creditCard.has(Constants.CARD_NUMBER) && creditCard.has(Constants.CVV)) {
+			creditCard.put(Constants.CARD_NUMBER, SecretUtil.rsaDecrypt(creditCard.getString(Constants.CARD_NUMBER)));
+			creditCard.put(Constants.CVV, SecretUtil.rsaDecrypt(creditCard.getString(Constants.CVV)));
+		}
+		// Validate
+		if(serviceId == 2) {
+			ServiceBean serviceBean = StoreUtil.getServiceBean(Long.valueOf(serviceId));
+			serviceBean.getUserLicense(user,null);
+		}
+		result = ValidationUtil.validate(serviceId, user, null, null, null,creditCard, locale);
+		String card_number = creditCard.getString(Constants.CARD_NUMBER);
+		card_number = card_number.substring(card_number.length() - 4);
+		result.put(Constants.NEW_CARD_FOUR_DIGIT,card_number);
+		if (!result.has(Constants.SUCCESS)) {
+			/*JSONObject paramsJSON = StoreUtil.generateAsyncNotifyJSON(serviceId, user, locale, subscription, null,creditCard, null,StoreMailUtil.MAIL_CREDIT_CARD_UPDATE_FAILURE);
+			AsyncNotify.execute(paramsJSON);*/
+			TransactionFailure.validationFailure(null, null, 0, serviceId, 0, 0, Constants.ACTION_CREDIT_CARD_CHANGE, result);
+			return result;
+		}
+		
+		String invoiceCompanyName = null;
+		if(creditCard != null && creditCard.has(Constants.CUSTOMER_COMPANY)) {
+			invoiceCompanyName = creditCard.getString(Constants.CUSTOMER_COMPANY);
+		} if(creditCard != null && creditCard.has(Constants.INVOICE_BILLINGNAME)) {
+			invoiceCompanyName = creditCard.getString(Constants.INVOICE_BILLINGNAME);
+		}
+		
+		String profileId = subscription.getString(Constants.PROFILEID);
+		if(creditCard.has(Constants.CARD_NUMBER) && creditCard.has(Constants.CVV) && creditCard.has(Constants.EXPIRY_MONTH) && creditCard.has(Constants.EXPIRY_YEAR) && creditCard.has(Constants.CARD_TYPE1)) {
+			int switchtogateway = -1;
+			String switchProfileId = subscription.getString(Constants.PROFILEID);
+			String currencyId = readbean.getCustomerCurrencyId(switchProfileId);
+			String countryCode = SubscriptionUtil.getCountryFromCurrencyId(currencyId);
+			if(creditCard.has(Constants.ISEXPRESS) && creditCard.get(Constants.ISEXPRESS).equals("true")) {
+				switchtogateway = Constants.GATEWAY_EXPRESSCHECKOUT;
+			}
+			subscription.remove(Constants.PROFILEID);
+			GatewayBean gatewayBean = GatewayBeanFactory.getInstance(serviceId, countryCode, countryCode, switchtogateway);
+			result = gatewayBean.switchGateway(switchProfileId, user, locale, creditCard);
+			profileId = result.getString(Constants.PROFILEID);
+			boolean cardAddrOptSupported = !servicemodel_config.has(String.valueOf(serviceId));
+			if(!cardAddrOptSupported && ZSMUtil.isZSMProfile(profileId)) {
+				String city = creditCard.has(Constants.CARD_CITY) ? creditCard.getString(Constants.CARD_CITY) : null;
+				ZSMUtil.updateBillingAddress(profileId, creditCard.getString(Constants.CARD_STREETADDRESS), city,
+						creditCard.getString(Constants.CARD_STATE), creditCard.getString(Constants.CARD_COUNTRY), creditCard.getString(Constants.CARD_ZIPCODE), creditCard.getString(Constants.CARD_PHONENO), invoiceCompanyName);
+			}
+			if(serviceJSON.has(Constants.CREDIT_TYPE) && serviceJSON.getBoolean(Constants.CREDIT_TYPE)) {
+				SubscriptionUtil.cancelProfile(user, profileId, serviceId, OrgUtil.getOwnerId(), false);
+			}
+		}
+		if (result.has(Constants.PAYMENT_SUCCESS)) {
+			Vector retryDetails = readbean.getRetryDetail(profileId);
+			if(serviceJSON.has(Constants.CHARGE_ON_CARDUPDATE) && serviceJSON.getBoolean(Constants.CHARGE_ON_CARDUPDATE) && retryDetails.size() > 0) {
+				int gatewayProviderId = SubscriptionUtil.getProfileIdGatewayProvider(profileId);
+				if(gatewayProviderId == Constants.GATEWAYPROVIDER_PAYPAL) { //Paypal only supports forcepayments.
+					forcePayments = StoreUtil.doForcePaymentAfterUpdateCard(profileId, remoteIp, retryDetails);
+					if(forcePayments) {
+						result.put(Constants.CARDUPDATE_SUCCESS, true);
+					} else {
+						result.put(Constants.CARDUPDATE_SUCCESS, false);
+					}
+				}
+			}
+			// Update Payments DB
+			updateDBonSuccessCardChange(profileId, serviceJSON, user, result, creditCard, causedBy);
+			/*JSONObject paramsJSON = StoreUtil.generateAsyncNotifyJSON(serviceId, profileId, null,StoreMailUtil.MAIL_CREDIT_CARD_UPDATE_SUCCESS);
+			AsyncNotify.execute(paramsJSON);*/
+		} else {
+			// Update credit card failed
+			/*JSONObject paramsJSON = StoreUtil.generateAsyncNotifyJSON(serviceId, profileId, null,StoreMailUtil.MAIL_CREDIT_CARD_UPDATE_FAILURE);
+			AsyncNotify.execute(paramsJSON);*/
+			return result;
+		}
+		result.put(Constants.SUCCESS, true);
+		//CSCRMPushUtil.push(subscription, creditCard, profileId, serviceId,Constants.ACTION_CREDIT_CARD_CHANGE);
+		return result;
+	}
+    
+    public static boolean updateDBonSuccessCardChange(String profileId,JSONObject serviceJSON,User user,JSONObject paymentResult, JSONObject creditCard,String causedBy) throws Exception{
+    	StoreBean storeBean = (StoreBean) BeanUtil.lookup(Constants.STOREBEAN);
+    	ReadBean readbean = BeanSelectorUtil.getReadBean();
+    	Persistence persistence = (Persistence) BeanUtil.lookup("Persistence","PAYMENTS");
+    	String origProfileId = GateWayUtil.getOriginalProfileId(profileId);
+		Set<String> pseudoProfiles = null;
+		JSONObject subscription = null;
+		if(serviceJSON.has(Constants.CREDIT_TYPE) && serviceJSON.getBoolean(Constants.CREDIT_TYPE)) {
+			pseudoProfiles = readbean.getAllPseudoProfiles(origProfileId);
+		} else {
+			pseudoProfiles = readbean.getPseudoProfiles(origProfileId);
+		}
+		for(String pseudoProfile : pseudoProfiles) {
+			String currentserviceId = BeanSelectorUtil.getReadBean().getServiceId(pseudoProfile);
+			serviceJSON = JSONUtil.getInstance().getServicesJSON().getJSONObject(currentserviceId);
+			if(serviceJSON.has(Constants.CREDIT_TYPE) && serviceJSON.getBoolean(Constants.CREDIT_TYPE)) {
+				subscription = storeBean.getSubscription(Long.valueOf(currentserviceId), pseudoProfile, false, null, Constants.PROFILETYPE_ONLINE);
+			} else {
+				subscription = storeBean.getSubscription(Long.valueOf(currentserviceId), pseudoProfile, true);
+			}
+			subscription.put(Constants.BUYERZUID, user.getZUID());
+			if (paymentResult.has(Constants.TRANSACTIONID)) {
+				subscription.put(Constants.TRANSACTIONID,paymentResult.getString(Constants.TRANSACTIONID));
+			}
+			else if (paymentResult.has(Constants.TX_REF)) {
+				subscription.put(Constants.TRANSACTIONID,paymentResult.getString(Constants.TX_REF));
+			}
+			if (paymentResult.has(Constants.TRXPNREF)) {
+				subscription.put(Constants.TRXPNREF,paymentResult.getString(Constants.TRXPNREF));
+			}
+			if (paymentResult.has(Constants.REQUEST_TOKEN)) {
+				subscription.put(Constants.REQUEST_TOKEN,paymentResult.getString(Constants.REQUEST_TOKEN));
+			}
+			if(!paymentResult.has(Constants.CHANGE_ADDRESS)) {
+				// CustomerCardDetails
+				UpdateQuery updateQuery = new UpdateQueryImpl(CUSTOMERCARDDETAILS.TABLE);
+				updateQuery.setCriteria(new Criteria(new Column(CUSTOMERCARDDETAILS.TABLE, CUSTOMERCARDDETAILS.PROFILEID),pseudoProfile, QueryConstants.EQUAL));
+				String ccNo = creditCard.getString(Constants.CARD_NUMBER);
+				if(creditCard.has(Constants.CUSTOMER_NAME)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.FIRSTNAME,creditCard.getString(Constants.CUSTOMER_NAME));
+				} else {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.FIRSTNAME,OrgUtil.getOwner().getPrimaryEmail());
+				}
+				String lastfourdigit = ccNo.substring(ccNo.length() - 4);
+				updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.CARD_FIRST_FOUR_DIGIT, lastfourdigit.equalsIgnoreCase("XXXX") ? Constants.CARDTYPE_PAYPAL : lastfourdigit.equalsIgnoreCase("MMMM") ? Constants.MOBILE : ccNo.substring(0, 4));
+				updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.CARDNUMBER_FOUR_DIGIT, lastfourdigit.equalsIgnoreCase("XXXX") ? Constants.CARDTYPE_PAYPAL : lastfourdigit.equalsIgnoreCase("MMMM") ? Constants.MOBILE : lastfourdigit);//NO I18N
+				updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.EXPIRY_MONTH,
+						creditCard.getInt(Constants.EXPIRY_MONTH));
+				updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.EXPIRY_YEAR,
+						creditCard.getInt(Constants.EXPIRY_YEAR));
+				updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.CARD_TYPE,
+						creditCard.getString(Constants.CARD_TYPE1));
+				if(creditCard.has(Constants.CARDID)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.GATEWAY_CARDID, creditCard.getString(Constants.CARDID));
+				}
+				if(creditCard.has(Constants.CC_ADDRESS)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.ADDRESS, creditCard.getString(Constants.CC_ADDRESS));
+				}
+				if(creditCard.has(Constants.CC_CITY)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.CITY, creditCard.getString(Constants.CC_CITY));
+				}
+				if(creditCard.has(Constants.CC_COUNTRY)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.COUNTRY, creditCard.getString(Constants.CC_COUNTRY));
+				}
+				if(creditCard.has(Constants.CC_STATE)) {
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.STATE, creditCard.getString(Constants.CC_STATE));
+				}
+				if(creditCard.has(Constants.CC_ZIPCODE) || creditCard.has(Constants.CARD_ZIPCODE)) {
+					String zipcode = creditCard.has(Constants.CC_ZIPCODE) ? creditCard.getString(Constants.CC_ZIPCODE) : creditCard.getString(Constants.CARD_ZIPCODE);
+					updateQuery.setUpdateColumn(CUSTOMERCARDDETAILS.ZIPCODE, zipcode);
+				}
+				persistence.update(updateQuery);
+			}
+            if(!PartnerUtil.isPartnerAccount() && !ValidationUtil.isPartnerFlow(Long.valueOf(currentserviceId))){
+			RecurringProfileUtil.updateCardType(profileId, Constants.CUSTOMERCARD);
+            }
+			// Add History
+			String historyStr = "Card Details Changed";//NO I18N
+			storeBean.addSubscriptionHistory(Long.valueOf(currentserviceId), subscription, creditCard,Constants.ACTION_CREDIT_CARD_CHANGE, causedBy,historyStr);
+		}
+		return true;
+    }
+
+	    
+	    public static JSONObject switchMultipleProfiles(JSONArray profiles,JSONObject card_details,String remoteAddr) throws Exception{
+	    	JSONObject result = new JSONObject();
+	    	ReadBean readbean = BeanSelectorUtil.getReadBean();
+	    	List<String> mergedProfilesList = new ArrayList<String>();
+	    	for(int i=0 ; i<profiles.length(); i++) {
+	    		String profileId = profiles.getString(i);
+	    		if(!mergedProfilesList.contains(profileId)) {
+		    		String origProfileId = BeanSelectorUtil.getReadBean().getOriginalProfile(profileId);
+		    		origProfileId = (origProfileId == null || origProfileId.equals("")) ? profileId : origProfileId;
+		    		Set<String> psuedoProfile = readbean.getPseudoProfiles(origProfileId);
+		    		User user = IAMUtil.getCurrentUser();
+	        		String language = StoreIAMUtils.getLanguage(user);
+	        		String serviceId = readbean.getServiceId(profileId);
+	        		String zid = readbean.getZuid(profileId);
+	        		OrgUtil.init(user);
+	        		OrgUtil.setOwnerId(zid);
+	    			result = switchBetweenPaypalAndCreditCard(Long.valueOf(serviceId), user, new Locale(language), card_details, Constants.CAUSEDBY_USER, remoteAddr);
+		    		for(String profileid: psuedoProfile) {
+						mergedProfilesList.add(profileid);
+		    		}
+		    	}	
+	    	}
+	    	return result;
+	    	
+	    }
+	    
+	    public static boolean udpateBillingDetails(JSONObject billin_details,long zuid) throws Exception {
+	    	BooksInvoiceDataBean booksinvoicedatabean = BeanSelectorUtil.getBooksInvoiceDataBean();
+	    	JSONArray profiles = booksinvoicedatabean.getPIdGivenZid(zuid);
+	    	boolean upddate = BeanSelectorUtil.getBooksInvoiceDataBean().updateCustomerDetailsByZuid(billin_details,profiles);
+	    	for(int i=0;i<profiles.length();i++) {
+	    		String profileId = profiles.getString(i);
+	    		if(ZSMUtil.isZSMProfile(profileId)) {
+	    			String invoiceCompanyName = billin_details.getString(Constants.INVOICE_BILLINGNAME);
+	    			String city = billin_details.has(Constants.CUSTOMER_CITY) ? billin_details.getString(Constants.CARD_CITY) : null;
+	    			ZSMUtil.updateBillingAddress(profileId, billin_details.getString(Constants.CUSTOMER_ADDRESS), city,
+	    					billin_details.getString(Constants.CUSTOMER_STATE), billin_details.getString(Constants.CUSTOMER_COUNTRY), billin_details.getString(Constants.CUSTOMER_ZIPCODE), billin_details.getString(Constants.CUSTOMER_PHONE), invoiceCompanyName);
+	    		}
+	    		BooksInvoicePaymentsProcess.updateCustomerProcess(profileId);
+	    		InvoiceJsonUtil.updateInvoiceCustomerForOldStore(profileId);
+	    	}
+	    	return upddate;
+	    }
+	 
+    public static JSONObject secondProductPurchase(JSONObject newSubscription, User user, String baid, long zuid, long serviceId, long zid) throws Exception{
+    	JSONObject response = new JSONObject();
+    	StoreBean storeBean = (StoreBean) BeanUtil.lookup(Constants.STOREBEAN);
+    	
+    	JSONObject serviceJSON = JSONUtil.getInstance().getServicesJSON().getJSONObject(String.valueOf(serviceId));
+		JSONObject subscription = null;
+		if(serviceJSON.has(Constants.CREDIT_TYPE) && serviceJSON.getBoolean(Constants.CREDIT_TYPE)) {
+			subscription = storeBean.getSubscription(serviceId, null, false, null, Constants.PROFILETYPE_ONLINE);
+		} else {
+			subscription = storeBean.getSubscription(serviceId, null, true);
+		}
+		long dbid;
+		JSONObject baiddetails = BeanSelectorUtil.getBooksInvoiceDataBean().getBAIDDetails(baid);
+		JSONObject details = new JSONObject();
+		String companyName="none";//No I18N
+		String serviceName = BeanSelectorUtil.getReadBean().getServiceName(serviceId+"");
+		newSubscription.put("servicename", serviceName);
+		details.put("newPlan",newSubscription);
+		details.put("serviceId",serviceId);
+		details.put("currencyId",newSubscription.getString("currencyId"));
+		details.put("country",baiddetails.getString("COUNTRY"));
+		details.put("customId",zid);
+		details.put("zuid", zuid);
+		details.put("companyName", companyName);
+		String emailid = baiddetails.getString("EMAILID");
+		UpdateBean updatebean = BeanSelectorUtil.getUpdateBean();
+		dbid=BeanSelectorUtil.getInsertBean().addExpressCheckoutDetails(""+details, Constants.BAID_CREATED);
+		updatebean.updateExpressCheckoutEmailId(new Long(dbid), emailid);
+		updatebean.updateExpressCheckoutBaid(new Long(dbid), baid, Constants.BAID_CREATED);
+		newSubscription.put("expressCheckoutId",dbid);
+		JSONObject ccDetails = new JSONObject();
+		ccDetails.put("isExpress","true");
+		ccDetails.put("country",baiddetails.getString("COUNTRY"));
+		ccDetails.put("streetAddress",baiddetails.has("ADDRESS") ? baiddetails.getString("ADDRESS"):"NONE");
+		ccDetails.put("companyName",baiddetails.has("COMPANYNAME") ? baiddetails.getString("COMPANYNAME"):"NONE");
+		ccDetails.put("billingName",baiddetails.has("COMPANYNAME") ? baiddetails.getString("COMPANYNAME"):"NONE");
+		ccDetails.put("state",baiddetails.has("STATE") ? baiddetails.getString("STATE"):"NONE");
+		ccDetails.put("city",baiddetails.has("CITY") ? baiddetails.getString("CITY"):"NONE");
+		ccDetails.put("zipCode",baiddetails.has("ZIPCODE") ? baiddetails.getString("ZIPCODE"):"NONE");
+		ccDetails.put("phone",baiddetails.has("PHONE") ? baiddetails.getString("PHONE"):"NONE");
+		ccDetails.put("CARD_PHONENO",baiddetails.has("PHONE") ? baiddetails.getString("PHONE"):"NONE");
+		ccDetails.put("BAID",baid);
+    	JSONObject order = storeBean.setSubscription(serviceId,user, newSubscription, subscription, ccDetails, null,Constants.CAUSEDBY_USER);
+    	return order;
+    }
+}

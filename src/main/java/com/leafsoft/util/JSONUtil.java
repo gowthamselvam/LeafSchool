@@ -11,9 +11,11 @@ import org.json.JSONObject;
 
 public class JSONUtil {
 	
+	private static final String RESTAPICONFIG_JSON = "restapiconfig.json";//NO I18N
 	private static final String DEBUG_JSON = "debug.json";//NO I18N
 
 	private JSONObject debug;
+	private JSONObject restapiConfigJSON;
 
 	private static final JSONUtil JSON_UTIL = new JSONUtil(); 
 	
@@ -56,5 +58,12 @@ public class JSONUtil {
 			debug = getJSONObject(DEBUG_JSON,null);
 		}
 		return debug;
+	}
+	
+	public JSONObject getRestAPIConfigJSON() throws Exception {
+		if (restapiConfigJSON == null) {
+			restapiConfigJSON = getJSONObject(RESTAPICONFIG_JSON,null);
+		}
+		return restapiConfigJSON;
 	}
 }

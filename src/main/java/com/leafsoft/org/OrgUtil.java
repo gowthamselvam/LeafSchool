@@ -7,12 +7,10 @@ import java.util.logging.Logger;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.GrantedAuthorityImpl;
@@ -33,7 +31,6 @@ import com.leafsoft.school.util.CommonUtil;
 import com.leafsoft.user.LeafUser;
 import com.leafsoft.util.AppResources;
 import com.leafsoft.util.JSONUtil;
-import com.leafsoft.util.JdbcUtil;
 
 
 public class OrgUtil {
@@ -276,10 +273,8 @@ public class OrgUtil {
 	//						session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
 							OrgUtil.setUser(leafuser);
 							OrgUtil.setUserlid(leafuser.getLid());
-							DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
 					        // Inject the datasource into the dao
 					    	OrgUsersDao userDAO = new OrgUsersDaoImpl();
-					    	userDAO.setDataSource(datasource);
 					    	orgUser = userDAO.loadOrgUserByLid(leafuser.getLid());
 					    	if(orgUser == null) {
 					    		orgUser = new OrgUser();
@@ -318,9 +313,7 @@ public class OrgUtil {
 				user = (User) a.getPrincipal();
 				System.out.print("user::::"+user);
 				if(user!=null) {
-					DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource(); 
 					OrgUsersDao userDAO = new OrgUsersDaoImpl();
-					userDAO.setDataSource(datasource);
 					orguser = userDAO.loadUserByUsername(user.getUsername());
 					System.out.print("username::::"+user.getUsername());
 				}
@@ -334,11 +327,8 @@ public class OrgUtil {
 	}
 	
 	public static void initOrgDetails(HttpServletRequest request, OrgUser orgUser) throws Exception{
-		DriverManagerDataSource datasource = new JdbcUtil().getAccountsDataSource();
 		OrgUserRolesDao userRoleDao = new OrgUserRolesDaoImpl();
 		OrganizationDao orgDao = new OrganizationDaoImpl();
-    	userRoleDao.setDataSource(datasource);
-    	orgDao.setDataSource(datasource);
     	int totalOrg = userRoleDao.getTotalNumberOfOrgForUser(orgUser.getLuid());//Check number orgs assoicated with the current user
     	
     	if(totalOrg == 1) {//if customer has only one org than allow him to access that org details 
@@ -348,13 +338,14 @@ public class OrgUtil {
 			OrgUtil.setOrgDetails(orgDetails);
 			OrgUtil.setOrgId(orgDetails.getOrgid());
 			OrgUtil.setValidOrg(true);
-    	} else if(totalOrg > 1) { //If the customer has multiple orgs thant get orgid from the browser if the org id is null than load the default org of the user
+    	} else if(totalOrg > 1) { //If the customer has multiple orgs than get orgid from the browser if the org id is null than load the default org of the user
     		boolean isValidOrg = false;
     		String orgid = request.getParameter("orgid");
-    		List<OrgUserRole> orgUserRoles = userRoleDao.findAllOrg(orgUser.getLuid());
+    		JSONArray orgUserRoles = userRoleDao.findAllUserOrg(orgUser.getLuid());
     		if(orgid != null) {
     			int org = Integer.valueOf(orgid);
-    			for(OrgUserRole orgUserRole : orgUserRoles) {
+    			for(int i=0; i<orgUserRoles.length();i++) {
+    				OrgUserRole orgUserRole =(OrgUserRole) orgUserRoles.get(i);
     				if(org == orgUserRole.getOrgDetail().getOrgid()) {
     					isValidOrg = true;
     					OrgUtil.setOrgdb(CommonUtil.getOrgDb(orgUserRole.getOrgDetail().getOrgid()));

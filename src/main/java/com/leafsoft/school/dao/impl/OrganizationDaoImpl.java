@@ -18,7 +18,6 @@ import org.springframework.jdbc.support.KeyHolder;
 import com.leafsoft.org.OrgUtil;
 import com.leafsoft.school.dao.OrganizationDao;
 import com.leafsoft.school.model.OrgDetail;
-import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.util.CommonUtil;
 import com.leafsoft.util.JdbcUtil;
 
@@ -28,8 +27,11 @@ public class OrganizationDaoImpl implements OrganizationDao{
 	
 	private DataSource dataSource;
 	
-	public void setDataSource(DataSource dataSource) {
-		this.dataSource = dataSource;
+	private JdbcTemplate jdbcTemplate;
+	
+	public OrganizationDaoImpl() {
+		this.dataSource = new JdbcUtil().getOrgDBDataSource();
+		jdbcTemplate = new JdbcTemplate(dataSource);
 	}
 	
 	public int insert(OrgDetail org){
@@ -43,8 +45,8 @@ public class OrganizationDaoImpl implements OrganizationDao{
 				"(orgid, luid, rolename) VALUES (?, ?, ?)";
 		final String sql2 = "update OrgUsers set defaultorgid = ? where luid = ?";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
-			JdbcTemplate insert = new JdbcTemplate(dataSource);
-			insert.update(
+			
+		jdbcTemplate.update(
 				    new PreparedStatementCreator() {
 				        public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
 				            PreparedStatement ps =
@@ -65,11 +67,18 @@ public class OrganizationDaoImpl implements OrganizationDao{
 				    },
 				    keyHolder);
 			
-		    insert.update(sql1,
+			jdbcTemplate.update(sql1,
 			        new Object[] { keyHolder.getKey(), OrgUtil.getOwnerid(), "ROLE_ADMIN"});
-		    insert.update(sql2,new Object[] { keyHolder.getKey(),OrgUtil.getOwnerid() });
+			jdbcTemplate.update(sql2,new Object[] { keyHolder.getKey(),OrgUtil.getOwnerid() });
 		    
+		    //Create User Database
 		    JdbcUtil.createDatabase(CommonUtil.getOrgDb(keyHolder.getKey().intValue()));
+		    
+		    //Set Userdb
+		    OrgUtil.setOrgdb(CommonUtil.getOrgDb(keyHolder.getKey().intValue()));
+		    
+		    //populate user tables
+		    JdbcUtil.executeQueryFromFile(JdbcUtil.getUserDataSource());
 		    
 		    return  keyHolder.getKey().intValue();
 			
@@ -79,7 +88,6 @@ public class OrganizationDaoImpl implements OrganizationDao{
 		OrgDetail org = null;
 		try {
 		String sql = "SELECT * FROM OrgDetails WHERE orgid = ?";
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		org = jdbcTemplate.queryForObject(sql,new Object[]{orgId},  new BeanPropertyRowMapper<OrgDetail>(OrgDetail.class));
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"findByCustomerId():::"+orgId+e.getMessage(),e);
