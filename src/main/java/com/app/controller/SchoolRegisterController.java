@@ -1,13 +1,10 @@
 package com.app.controller;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -82,7 +79,7 @@ public class SchoolRegisterController {
 	        }
 	        String msg = "<img src='images/leafsoft.png' alt='LeafSoft'><br><h3>Hi "+org.getOrgname()+"</h3>,<br>"+"<h4>Welcome to LeafSoft!<br>Now that you've successfully created an LeafSoft School Management Online account.";
 	        msg = msg + "<br><br>Thanks<br>The LeafSoft Team";
-	        SendMail.send(OrgUtil.getUser().getEmail(), "Welcome to LeafSoft SchoolManagement", msg);
+	        //SendMail.send(OrgUtil.getUser().getEmail(), "Welcome to LeafSoft SchoolManagement", msg);
     	}
     	else {
     		modelview.setViewName("Registration");
