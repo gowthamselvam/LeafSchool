@@ -62,7 +62,7 @@ CREATE TABLE `Subjects` (
   PRIMARY KEY (`subjectid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=latin1;
 
-CREATE TABLE `courses` (
+CREATE TABLE `Courses` (
   `courseid` int(11) NOT NULL AUTO_INCREMENT,
   `course` varchar(50) NOT NULL,
   `section` varchar(20) NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE `StaffSubjectCourseHistory` (
   KEY `StaffSubjectCourseHistory_courseid` (`courseid`),
   CONSTRAINT `StaffSubjectCourseHistory_fk_staffid` FOREIGN KEY (`staffid`) REFERENCES `StaffDetails` (`staffid`),
   CONSTRAINT `StaffSubjectCourseHistory_fk_subjectid` FOREIGN KEY (`subjectid`) REFERENCES `Subjects` (`subjectid`),
-  CONSTRAINT `StaffSubjectCourseHistory_fk_courseid` FOREIGN KEY (`courseid`) REFERENCES `courses` (`courseid`)
+  CONSTRAINT `StaffSubjectCourseHistory_fk_courseid` FOREIGN KEY (`courseid`) REFERENCES `Courses` (`courseid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=latin1;
 
 CREATE TABLE `StudentCourseHistory` (
@@ -92,7 +92,7 @@ CREATE TABLE `StudentCourseHistory` (
   PRIMARY KEY (`studentcoursehistoryid`),
   KEY `StudentCourseHistory_courseid` (`courseid`),
   KEY `StudentCourseHistory_sid` (`studentid`),
-  CONSTRAINT `StudentCourseHistory_fk_courseid` FOREIGN KEY (`courseid`) REFERENCES `courses` (`courseid`),
+  CONSTRAINT `StudentCourseHistory_fk_courseid` FOREIGN KEY (`courseid`) REFERENCES `Courses` (`courseid`),
   CONSTRAINT `StudentCourseHistory_fk_studentid` FOREIGN KEY (`studentid`) REFERENCES `StudentDetails` (`studentid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=latin1;
 

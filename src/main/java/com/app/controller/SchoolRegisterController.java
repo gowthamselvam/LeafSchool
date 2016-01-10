@@ -20,6 +20,7 @@ import com.leafsoft.school.dao.OrgUsersDao;
 import com.leafsoft.school.dao.OrganizationDao;
 import com.leafsoft.school.dao.impl.OrgUsersDaoImpl;
 import com.leafsoft.school.dao.impl.OrganizationDaoImpl;
+import com.leafsoft.school.model.Courses;
 import com.leafsoft.school.model.OrgDetail;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.util.JdbcUtil;
@@ -88,6 +89,22 @@ public class SchoolRegisterController {
         SecurityContextHolder.clearContext();
         JdbcUtil.cleanUp(datasource);
         return modelview;
+    }
+	
+	@RequestMapping(value = "/course", method = RequestMethod.GET)
+    public String addCourse(Map<String, Object> model) {
+        Courses course = new Courses();    
+        model.put("courseForm", course);
+        System.out.print("sessionid"+OrgUtil.getOrgdb());
+        return "course";
+    }
+	
+	@RequestMapping(value = "/course", method = RequestMethod.POST)
+    public void courseProcess(@ModelAttribute("courseForm") Courses course,
+            Map<String, Object> model,HttpServletRequest request) {
+         
+        // for testing purpose:
+    	LOGGER.log(Level.INFO,"username: " + course.getCourse());
     }
     
 }
