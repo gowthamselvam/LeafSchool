@@ -26,9 +26,9 @@ public class AuthenticationEntryPointDenied implements AuthenticationEntryPoint 
 		LOGGER.log(Level.INFO,"OrgUtil.isValidOrg():::"+OrgUtil.isValidOrg());
 		// Redirecting service to access denied page for invalid users
 		RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
-		if(OrgUtil.getOwner() == null) {
+		if(OrgUtil.getUserlid() == null) {
 			redirectStrategy.sendRedirect(request, response, AppResources.getInstance().getAccountsUrl());
-		} else {
+		} else if(!OrgUtil.isValidOrg()) {
 			redirectStrategy.sendRedirect(request, response, "/accessdenied");
 		}
 		
