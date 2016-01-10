@@ -28,7 +28,7 @@ public class AuthenticationEntryPointDenied implements AuthenticationEntryPoint 
 		RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 		if(OrgUtil.getUserlid() == null) {
 			redirectStrategy.sendRedirect(request, response, AppResources.getInstance().getAccountsUrl());
-		} else if(!OrgUtil.isValidOrg()) {
+		} else if(OrgUtil.getOrgId()!=null && (OrgUtil.isValidOrg()== null || !OrgUtil.isValidOrg())) {
 			redirectStrategy.sendRedirect(request, response, "/accessdenied");
 		}
 		
