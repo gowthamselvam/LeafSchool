@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.json.JSONObject;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -28,7 +27,6 @@ import com.app.model.Employees;
 import com.leafsoft.http.HttpUtil;
 import com.leafsoft.org.OrgUtil;
 import com.leafsoft.util.AppResources;
-import com.leafsoft.util.JSONUtil;
 
 @Controller
 public class SchoolController 
@@ -68,7 +66,6 @@ public class SchoolController
 		System.out.print("sessionidprincipal"+request.getUserPrincipal());
 		System.out.print("sessionidname"+session.getAttribute("user"));
 	// Check to see if any cookies exists
-		JSONObject sessionUser = null;
 		if (cookie_jar != null)
 		{
 			for (int i =0; i< cookie_jar.length; i++)

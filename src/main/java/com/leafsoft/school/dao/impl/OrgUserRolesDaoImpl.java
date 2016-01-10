@@ -2,9 +2,7 @@ package com.leafsoft.school.dao.impl;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -19,21 +17,22 @@ import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 
-import com.leafsoft.org.OrgUtil;
 import com.leafsoft.school.dao.OrgUserRolesDao;
 import com.leafsoft.school.dao.OrganizationDao;
-import com.leafsoft.school.model.OrgDetail;
 import com.leafsoft.school.model.OrgUser;
 import com.leafsoft.school.model.OrgUserRole;
 import com.leafsoft.school.rowmapper.RowMapper;
+import com.leafsoft.util.JdbcUtil;
 
 public class OrgUserRolesDaoImpl implements OrgUserRolesDao {
 private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getName());
 	
 	private DataSource dataSource;
+	private JdbcTemplate jdbcTemplate;
 	
-	public void setDataSource(DataSource dataSource) {
-		this.dataSource = dataSource;
+	public OrgUserRolesDaoImpl() {
+		this.dataSource = new JdbcUtil().getOrgDBDataSource();
+		jdbcTemplate = new JdbcTemplate(dataSource);
 	}
 	
 	public int insert(OrgUser orgUser,String role){
@@ -44,8 +43,8 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		final String sql = "INSERT INTO OrgUserRoles " +
 				"(orgid, luid, ,rolename) VALUES (?, ?, ?)";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
-			JdbcTemplate insert = new JdbcTemplate(dataSource);
-			insert.update(
+			
+		jdbcTemplate.update(
 				    new PreparedStatementCreator() {
 				        public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
 				            PreparedStatement ps =
@@ -65,7 +64,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		OrgUserRole orgUserrole = null;
 		try {
 		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ? and orgid = ?";
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		orgUserrole = jdbcTemplate.queryForObject(sql,new Object[]{luid,orgId},  new BeanPropertyRowMapper<OrgUserRole>(OrgUserRole.class));
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
@@ -77,7 +75,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		String sql = "SELECT * FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid inner join OrgUsers ou on ou.luid=our.luid where our.luid = ?";
 		 
 		JSONArray OrgUserRolesArray = new JSONArray();
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, new Object[]{luid});
 		for (Map<String, Object> row : rows) {
 			OrgUserRole orgUserRole = new OrgUserRole();
@@ -96,7 +93,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		String sql = "SELECT * FROM OrgUserRoles our inner join OrgDetails od on our.orgid = od.orgid inner join OrgUsers ou on ou.luid=our.luid";
 			 
 		JSONArray OrgUserRolesArray = new JSONArray();
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
 		for (Map<String, Object> row : rows) {
 			OrgUserRole orgUserRole = new OrgUserRole();
@@ -115,7 +111,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		OrgUserRole orgUserrole = null;
 		try {
 		String sql = "SELECT * FROM OrgUserRoles WHERE luid = ? limit 1";
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		orgUserrole = jdbcTemplate.queryForObject(sql,new Object[]{luid},  new BeanPropertyRowMapper<OrgUserRole>(OrgUserRole.class));
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);
@@ -127,7 +122,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		int count = 0;
 		try {
 			String sql = "SELECT count(*) FROM OrgUserRoles WHERE luid = ?";
-			JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 			count = jdbcTemplate.queryForObject(sql, new Object[]{luid},Integer.class);
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"findByCustomerId():::"+luid+e.getMessage(),e);

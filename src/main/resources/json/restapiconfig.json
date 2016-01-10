@@ -1,0 +1,14 @@
+{
+	"ResellerCustomerReport" :  {
+			apimethod : ["GET"],
+			apiclass  : "com.adventnet.store.reseller.restapi.ResellerCustomerReport"
+	},
+	"billingdetails" : {
+			apimethod : ["GET","POST"],
+			apiclass  : "com.adventnet.store.reseller.restapi.BillingCardDetails"		
+	},
+	"billingaddressdetails" : {
+			apimethod : ["POST"],
+			apiclass  : "com.adventnet.store.reseller.restapi.BillingAddressDetails"		
+	}
+}

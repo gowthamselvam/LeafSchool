@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Properties;
 
 import javax.net.ssl.HttpsURLConnection;
 

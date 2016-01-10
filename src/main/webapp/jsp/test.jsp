@@ -1,3 +1,4 @@
+<%@page import="com.leafsoft.school.dao.impl.CoursesDaoImpl"%>
 <%@page import="org.springframework.core.io.Resource"%>
 <%@page import="org.springframework.jdbc.datasource.init.ResourceDatabasePopulator"%>
 <%@page import="org.springframework.core.io.ResourceLoader"%>
@@ -16,10 +17,5 @@
 
 %>
 <% 
-DriverManagerDataSource datasource = new JdbcUtil().getOrgDBDataSource();
-OrgUserRolesDao userRoleDao = new OrgUserRolesDaoImpl();
-userRoleDao.setDataSource(datasource);
-OrgUserRole orgrole =(OrgUserRole) userRoleDao.findAllUserOrg(24).get(0);
-out.print(orgrole.getOrgDetail().getOrgid());
-
+out.print(new CoursesDaoImpl().loadCourseByCourse("1").getSection());
 %>

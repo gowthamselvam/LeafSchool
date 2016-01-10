@@ -1,7 +1,6 @@
 package com.leafsoft.school.util;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -16,7 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.leafsoft.user.LeafUser;
 import com.leafsoft.util.DateAndTime;
-import com.leafsoft.util.DateUtil;
 
 public class CommonUtil {
 

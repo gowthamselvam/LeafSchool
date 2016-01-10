@@ -14,12 +14,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.json.JSONArray;
-import org.json.JSONObject;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.leafsoft.org.OrgUtil;
-import com.leafsoft.util.AppResources;
 import com.leafsoft.util.Constants;
 
 public class OrgFilter implements Filter {
