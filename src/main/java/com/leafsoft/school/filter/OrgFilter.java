@@ -14,9 +14,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.json.JSONArray;
-import org.json.JSONObject;
 
 import com.leafsoft.org.OrgUtil;
+import com.leafsoft.util.Constants;
 
 public class OrgFilter implements Filter {
 
@@ -32,11 +32,26 @@ public class OrgFilter implements Filter {
 		try {
 			HttpServletRequest request = (HttpServletRequest) req;
 			HttpServletResponse response = (HttpServletResponse) res;
-			String path = request.getRequestURI();
-			//String serviceName = path.substring(path.lastIndexOf("/")+1, path.indexOf("."));
-				boolean success = OrgUtil.setCurrentUser(request,response);
-				LOGGER.log(Level.INFO,"user Authenitcation status:::::"+success);
+			LOGGER.log(Level.INFO,"getOrgId:::::ip:"+OrgUtil.getOrgId());
 			LOGGER.log(Level.INFO,"Filter:::::ip:"+request.getRemoteAddr());
+			if(request.getAttribute(Constants.DOES_NOT_NEED_ORGFILTER) == null || !Boolean.valueOf(request.getAttribute(Constants.DOES_NOT_NEED_ORGFILTER).toString())) {
+				OrgUtil.setCurrentUser(request);
+				LOGGER.log(Level.INFO,"OrgUtil.getUserlid():::"+OrgUtil.getUserlid());
+				LOGGER.log(Level.INFO,"OrgUtil.getOrgId():::"+OrgUtil.getOrgId());
+				LOGGER.log(Level.INFO,"OrgUtil.isValidOrg():::"+OrgUtil.isValidOrg());
+				if(OrgUtil.getUserlid() == null) {
+					request.getRequestDispatcher("/invaliduser").forward(request, response);
+					return;
+				} else if(OrgUtil.getOrgId() == null) {
+					request.getRequestDispatcher("/register").forward(request, response);
+					return;
+				} else if(!OrgUtil.isValidOrg()) {
+					request.getRequestDispatcher("/accessdenied").forward(request, response);
+					return;
+				}
+			} else {
+				OrgUtil.setCurrentUser(request);
+			}
 			fc.doFilter(req, res);
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -10,17 +10,21 @@
 	<http pattern="/css/**" security="none"/>
 	<http pattern="/js/**" security="none"/>
 	<http pattern="/favicon.ico" security="none"/>
+	<http pattern="/invaliduser" security="none"/>
+	<http pattern="/logoutsession" security="none"/>
 	
 	<http pattern="/accessdenied" security="none"/>
 	<http create-session="never"
 		auto-config="false" entry-point-ref="preAuthenticatedProcessingFilterEntryPoint">
-		<intercept-url pattern="/**" access="ROLE_USER"/>
-		<intercept-url pattern="/register" access="IS_AUTHENTICATED_FULLY"/>
-		<intercept-url pattern="/schoolRegister" access="IS_AUTHENTICATED_FULLY"/>
+		<intercept-url pattern="/**" access="ROLE_COMMONUSER"/>
+		<intercept-url pattern="/register" access="ROLE_COMMONUSER"/>
+		<intercept-url pattern="/schoolRegister" access="ROLE_COMMONUSER"/>
 		<custom-filter position="PRE_AUTH_FILTER"
 			ref="preAuthFilter" />
-		<session-management
-			session-fixation-protection="none" />
+		<!-- <session-management
+			session-fixation-protection="none" /> -->
+		<session-management session-fixation-protection="newSession" />
+    	<logout logout-url="/logout" logout-success-url="/logoutsession" delete-cookies="JSESSIONID" />
 	</http>
 
 	<beans:bean id="preAuthFilter" class="com.app.filter.UrlParametersAuthenticationFilter">

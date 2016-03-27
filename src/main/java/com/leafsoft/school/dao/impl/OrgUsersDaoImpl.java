@@ -15,19 +15,19 @@ import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 
-import com.leafsoft.org.OrgUtil;
 import com.leafsoft.school.dao.OrgUsersDao;
 import com.leafsoft.school.dao.OrganizationDao;
 import com.leafsoft.school.model.OrgUser;
-import com.leafsoft.user.LeafUser;
+import com.leafsoft.util.JdbcUtil;
 
 public class OrgUsersDaoImpl implements OrgUsersDao{
 private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getName());
 	
 	private DataSource dataSource;
-	
-	public void setDataSource(DataSource dataSource) {
-		this.dataSource = dataSource;
+	JdbcTemplate jdbcTemplate;
+	public OrgUsersDaoImpl() {
+		this.dataSource = new JdbcUtil().getOrgDBDataSource();
+		jdbcTemplate = new JdbcTemplate(dataSource);
 	}
 	
 	public int insert(OrgUser orgUser){
@@ -35,10 +35,9 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		final OrgUser finalOrgUser = orgUser;
 		
 		final String sql = "INSERT INTO OrgUsers " +
-				"(lid, username ,email, createtime) VALUES (?, ?, ?, ?)";
+				"(lid, username ,email, createtime, defaultorgid) VALUES (?, ?, ?, ?, ?)";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
-			JdbcTemplate insert = new JdbcTemplate(dataSource);
-			insert.update(
+		jdbcTemplate.update(
 				    new PreparedStatementCreator() {
 				        public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
 				            PreparedStatement ps =
@@ -47,11 +46,13 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 				            ps.setString(2, finalOrgUser.getUsername());
 				            ps.setString(3, finalOrgUser.getEmail());
 				            ps.setLong(4, System.currentTimeMillis());
+				            ps.setInt(5, finalOrgUser.getDefaultorgid());
 				            return ps;
 				        }
 				    },
 				    keyHolder);
 			LOGGER.log(Level.INFO, "New Org User" + keyHolder.getKey().intValue());
+			
 		    return  keyHolder.getKey().intValue();
 			
 	}
@@ -60,7 +61,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		OrgUser orgUser = null;
 		try {
 		String sql = "SELECT * FROM OrgUsers WHERE lid = ?";
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		orgUser = jdbcTemplate.queryForObject(sql,new Object[]{lid},  new BeanPropertyRowMapper<OrgUser>(OrgUser.class));
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"findByCustomerId():::"+lid+e.getMessage(),e);
@@ -88,7 +88,6 @@ private static final Logger LOGGER = Logger.getLogger(OrganizationDao.class.getN
 		OrgUser user = null;
 		try {
 		String sql = "SELECT * FROM OrgUsers WHERE username = ?";
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		user = jdbcTemplate.queryForObject(sql,new Object[]{userName},  new BeanPropertyRowMapper<OrgUser>(OrgUser.class));
 		}catch(Exception e) {
 			LOGGER.log(Level.INFO,"loadUserByUsername():::"+userName+e.getMessage(),e);

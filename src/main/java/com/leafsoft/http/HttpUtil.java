@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Properties;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -15,14 +14,14 @@ public class HttpUtil {
 
 
 	// HTTP GET request
-	public static String sendGet(String url,String sessionId) throws Exception {
+	public static String makeApiCall(String url,String sessionId,String method) throws Exception {
 
 		
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
 		// optional default is GET
-		con.setRequestMethod("GET");
+		con.setRequestMethod(method);
 
 		//add request header
 		con.setRequestProperty("User-Agent", USER_AGENT);

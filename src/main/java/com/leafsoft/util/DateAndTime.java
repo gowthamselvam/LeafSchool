@@ -443,7 +443,7 @@ public class DateAndTime
         }
         Calendar cal = Calendar.getInstance();
         cal.setTime(dte);
-        cal.add(cal.DATE, (int)no_of_days);
+        cal.add(Calendar.DATE, (int)no_of_days);
         Date dxt = cal.getTime();
         return f1.format(dxt);
     }
@@ -464,7 +464,7 @@ public class DateAndTime
         
         Calendar cal = Calendar.getInstance();
         cal.setTime(dte);
-        cal.add(cal.DATE, (int)no_of_days);
+        cal.add(Calendar.DATE, (int)no_of_days);
         Date dxt = cal.getTime();
         return f1.format(dxt);
     }
@@ -802,10 +802,10 @@ public class DateAndTime
     public static Properties getMonthStartAndEndDate(int month,int year) 
     {
         Calendar cal = Calendar.getInstance();
-        cal.set(cal.MONTH,month-1);
-        cal.set(cal.YEAR,year);
-        int endday = cal.getActualMaximum(cal.DAY_OF_MONTH);
-        int startday = cal.getActualMinimum(cal.DAY_OF_MONTH);
+        cal.set(Calendar.MONTH,month-1);
+        cal.set(Calendar.YEAR,year);
+        int endday = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+        int startday = cal.getActualMinimum(Calendar.DAY_OF_MONTH);
         String startstr = startday+"/"+month+"/"+year+" 00:00:00";
         //java.sql.Timestamp startDate = new java.sql.Timestamp(dateInLong(startstr,"dd/mm/yyyy"));
         java.sql.Timestamp startDate = getTimestamp(startstr,TIMESTAMPFORMAT);
@@ -1548,7 +1548,7 @@ public static Properties getLastTwelveMonths()
 	DateFormat df = new SimpleDateFormat("yyyy-MM-dd");// NO I18N
 	Date startDate = df.parse(dbDate);
 	cal.setTime(startDate);
-	int startDay = cal.getActualMaximum(cal.DAY_OF_MONTH);
+	int startDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
 	DateFormat dfrmt = new SimpleDateFormat("yyyy-MM");// NO I18N
 	String month = dfrmt.format(cal.getTime());
 	dateprop.put("end",month+"-"+startDay);
@@ -1558,7 +1558,7 @@ public static Properties getLastTwelveMonths()
 	 month = dfrmt.format(cal.getTime());
 	 dateprop.put(i+2+"",month);
 	}
-	int endDay = cal.getActualMinimum(cal.DAY_OF_MONTH);
+	int endDay = cal.getActualMinimum(Calendar.DAY_OF_MONTH);
 	dateprop.put("start",month+"-"+endDay); 
 	}catch(Exception e){
 		e.printStackTrace();

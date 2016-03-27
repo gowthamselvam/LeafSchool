@@ -3,6 +3,7 @@ package com.leafsoft.school.model;
 import java.io.Serializable;
 import javax.persistence.*;
 import java.math.BigInteger;
+import java.util.List;
 
 
 /**
@@ -39,6 +40,10 @@ public class OrgDetail implements Serializable {
 	private String timetype;
 
 	private String zipcode;
+
+	//bi-directional many-to-one association to OrgUserRole
+	@OneToMany(mappedBy="orgDetail")
+	private List<OrgUserRole> orgUserRoles;
 
 	public OrgDetail() {
 	}
@@ -137,6 +142,28 @@ public class OrgDetail implements Serializable {
 
 	public void setZipcode(String zipcode) {
 		this.zipcode = zipcode;
+	}
+
+	public List<OrgUserRole> getOrgUserRoles() {
+		return this.orgUserRoles;
+	}
+
+	public void setOrgUserRoles(List<OrgUserRole> orgUserRoles) {
+		this.orgUserRoles = orgUserRoles;
+	}
+
+	public OrgUserRole addOrgUserRole(OrgUserRole orgUserRole) {
+		getOrgUserRoles().add(orgUserRole);
+		orgUserRole.setOrgDetail(this);
+
+		return orgUserRole;
+	}
+
+	public OrgUserRole removeOrgUserRole(OrgUserRole orgUserRole) {
+		getOrgUserRoles().remove(orgUserRole);
+		orgUserRole.setOrgDetail(null);
+
+		return orgUserRole;
 	}
 
 }
